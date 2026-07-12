@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Loader2Icon } from "lucide-react";
+import { Loader2Icon, SunIcon, MoonIcon } from "lucide-react";
 import { FaceIdIcon, AppleLockIcon } from "@/components/Icons";
+import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import { savePinForMaster, hasPinLock } from "@/components/PinLock";
 import { isBiometricsSupported, hasBiometricsEnabled, enableBiometrics, unlockWithBiometrics } from "@/lib/biometrics";
@@ -24,6 +25,39 @@ export function Auth({
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
+  const { setTheme, resolvedTheme } = useTheme();
+
+  const themeToggleButton = (
+    <button
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors z-50"
+      aria-label="Toggle theme"
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {resolvedTheme === "dark" ? (
+          <motion.span
+            key="sun"
+            initial={{ rotate: -90, opacity: 0, scale: 0.7 }}
+            animate={{ rotate: 0, opacity: 1, scale: 1 }}
+            exit={{ rotate: 90, opacity: 0, scale: 0.7 }}
+            transition={{ duration: 0.2 }}
+          >
+            <SunIcon className="w-5 h-5" />
+          </motion.span>
+        ) : (
+          <motion.span
+            key="moon"
+            initial={{ rotate: 90, opacity: 0, scale: 0.7 }}
+            animate={{ rotate: 0, opacity: 1, scale: 1 }}
+            exit={{ rotate: -90, opacity: 0, scale: 0.7 }}
+            transition={{ duration: 0.2 }}
+          >
+            <MoonIcon className="w-5 h-5" />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </button>
+  );
 
   // PIN setup state — shown after successful login if no PIN exists yet
   const [pendingMaster, setPendingMaster] = useState<string | null>(null);
@@ -148,7 +182,8 @@ export function Auth({
 
     if (pinSetupPhase === "prompt") {
       return (
-        <div className="flex h-screen w-full items-center justify-center bg-background px-4">
+        <div className="flex h-screen w-full items-center justify-center bg-background px-4 relative">
+          {themeToggleButton}
           <motion.div
             className="w-full max-w-xs flex flex-col items-center gap-8 text-center"
             initial={{ opacity: 0, y: 16 }}
@@ -205,7 +240,8 @@ export function Auth({
     }
 
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background px-4">
+      <div className="flex h-screen w-full items-center justify-center bg-background px-4 relative">
+        {themeToggleButton}
         <motion.div
           key={pinSetupPhase}
           className="w-full max-w-xs flex flex-col items-center gap-8"
@@ -286,7 +322,8 @@ export function Auth({
   }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-background px-4 sm:px-0 font-sans">
+    <div className="flex h-screen w-full items-center justify-center bg-background px-4 sm:px-0 font-sans relative">
+      {themeToggleButton}
       <motion.div 
         className="w-full max-w-sm"
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
