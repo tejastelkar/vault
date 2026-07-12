@@ -93,15 +93,32 @@
 .apple-selection-toolbar { position: fixed; z-index: 60; left: 12px; right: 12px; bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px) + 10px); min-height: 52px; border-radius: 18px; padding: 6px 10px; align-items: center; justify-content: space-between; }
 .apple-selection-toolbar button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
 .apple-wallet-stack { isolation: isolate; }
+.apple-wallet-master-detail { display: grid; gap: 20px; align-items: start; }
+.apple-wallet-detail-pane { padding: 20px; border-radius: 24px; background: var(--elevated-bg); }
 .apple-bank-list { max-width: 760px; margin-inline: auto; }
 .apple-bank-list > * + * { border-top: .5px solid var(--separator); }
 .apple-bank-row { cursor: pointer; transition: background-color 140ms ease; }
 .apple-bank-row:active { background: color-mix(in srgb, var(--elevated-bg) 90%, var(--system-blue)) !important; }
+.apple-bank-detail { background: var(--elevated-bg); border: 1px solid color-mix(in srgb, var(--separator) 60%, transparent); border-radius: 22px; padding: 20px; box-shadow: var(--apple-shadow); }
+.apple-bank-detail-backdrop { display: none; }
 @media (max-width: 1023px) {
-  .apple-wallet-card-stacked { margin-bottom: -42%; transition: transform var(--apple-spring), margin var(--apple-spring); }
-  .apple-wallet-card-stacked:hover { transform: translateY(-4px); }
-  .apple-wallet-card-active { margin-bottom: 18px; transform: translateY(-6px); z-index: 30 !important; }
-  .apple-wallet-stack > :last-child .apple-wallet-card-stacked { margin-bottom: 0; }
+  .apple-wallet-card-stacked { transition: height var(--apple-spring), transform var(--apple-spring), margin var(--apple-spring); }
+  .apple-wallet-card-stacked:not(.apple-wallet-card-active) { height: 76px; overflow: hidden; margin-bottom: 12px; border-radius: 24px; }
+  .apple-wallet-card-stacked:not(.apple-wallet-card-active) .apple-wallet-card-body { display: none; }
+  .apple-wallet-card-stacked:not(.apple-wallet-card-active) .apple-wallet-card-details { display: none; }
+  .apple-wallet-card-stacked:not(.apple-wallet-card-active) .apple-wallet-card-face { min-height: 228px; }
+  .apple-wallet-card-stacked:hover { transform: translateY(-2px); }
+  .apple-wallet-card-active { height: auto; margin: 8px 0 18px; overflow: visible; transform: translateY(-2px); z-index: 30 !important; }
+  .apple-wallet-stack > :last-child .apple-wallet-card-stacked:not(.apple-wallet-card-active) { margin-bottom: 0; }
+}
+@media (min-width: 1024px) {
+  .apple-wallet-master-detail { grid-template-columns: minmax(360px, 1fr) minmax(300px, 360px); gap: 28px; }
+  .apple-wallet-detail-pane { position: sticky; top: 20px; padding: 24px; }
+  .apple-wallet-card-face { transition: transform var(--apple-spring), box-shadow var(--apple-spring); }
+  .apple-wallet-card-face:hover { transform: translateY(-4px); box-shadow: 0 30px 64px rgba(0,0,0,.28); }
+  .apple-bank-master-detail { display: grid; grid-template-columns: minmax(300px, .85fr) minmax(380px, 1.15fr); align-items: start; gap: 20px; }
+  .apple-bank-master-detail .apple-bank-list { width: 100%; max-width: none; margin: 0; }
+  .apple-bank-detail { position: sticky; top: 20px; }
 }
 @media (max-width: 767px) {
   [role="dialog"].apple-bottom-sheet { top: auto !important; bottom: 0 !important; left: 0 !important; width: 100% !important; max-width: none !important; transform: none !important; margin: 0 !important; padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); border-radius: 28px 28px 0 0 !important; background: var(--elevated-bg); }
@@ -109,6 +126,8 @@
   .apple-bottom-sheet:not([role="dialog"]) { margin: 0 -1.5rem -1.5rem; padding: 10px 1.5rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); border-radius: 28px 28px 0 0; background: var(--elevated-bg); }
   .apple-sheet-grabber { display: block; width: 36px; height: 5px; margin: 0 auto 18px; border-radius: 99px; background: color-mix(in srgb, var(--muted-foreground) 35%, transparent); }
   .apple-selection-toolbar { display: flex; }
+  .apple-bank-detail-backdrop { display: block; position: fixed; inset: 0; z-index: 69; background: rgba(0,0,0,.28); backdrop-filter: blur(3px); }
+  .apple-bank-detail { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; max-height: min(82dvh, 680px); overflow-y: auto; border-radius: 28px 28px 0 0; padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,.2); }
 }
 
 /* ─── Dark Mode — pure iOS/macOS dark system palette ─────────── */
@@ -195,6 +214,28 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+.apple-adaptive-header {
+  position: relative;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+}
+
+.apple-header-title {
+  min-width: 11rem;
+}
+
+.apple-header-search {
+  position: absolute;
+  left: 50%;
+  width: min(22rem, 34vw);
+  transform: translateX(-50%);
+}
+
+.apple-header-actions {
+  margin-left: auto;
+}
+
 .ios-mobile-tabbar {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   border-top: 0;
@@ -222,6 +263,16 @@ body {
     height: calc(58px + env(safe-area-inset-top, 0px)) !important;
     align-items: flex-end;
     padding-bottom: 9px;
+  }
+
+  .apple-adaptive-header {
+    min-height: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    padding-inline: 14px;
+    background: color-mix(in srgb, var(--elevated-bg) 86%, transparent);
+  }
+
+  .apple-mobile-identity {
+    max-width: calc(100% - 148px);
   }
 
   .ios-content-scroll {
@@ -325,10 +376,115 @@ a:focus-visible {
 .apple-sheet { border-radius: 24px; background: var(--elevated-bg); box-shadow: var(--apple-shadow); }
 .apple-tabbar { padding-bottom: env(safe-area-inset-bottom); }
 
+/* Apple Passwords master-detail */
+.apple-password-master-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.apple-password-detail {
+  overflow: hidden;
+  border: 1px solid var(--separator);
+  border-radius: 22px;
+  background: var(--elevated-bg);
+  box-shadow: var(--apple-shadow);
+}
+.apple-password-detail-group {
+  overflow: hidden;
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--elevated-bg) 88%, var(--grouped-bg));
+}
+.apple-password-detail-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--separator);
+}
+.apple-password-detail-row:last-child { border-bottom: 0; }
+.apple-password-icon-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--system-blue);
+  background: color-mix(in srgb, var(--system-blue) 10%, transparent);
+}
+.apple-password-detail-backdrop { display: none; }
+
+@media (min-width: 768px) {
+  .apple-password-master-detail:has(.apple-password-detail) {
+    grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
+  }
+  .apple-password-detail {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100dvh - 150px);
+    overflow-y: auto;
+  }
+}
+
+/* Adaptive Passwords / Bank detail surfaces */
+.apple-master-detail { min-width: 0; }
+.apple-master-list { min-width: 0; }
+.apple-detail-pane {
+  background: color-mix(in srgb, var(--elevated-bg) 96%, var(--grouped-bg));
+  border-radius: 16px;
+}
+.apple-detail-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.28fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--separator) 58%, transparent);
+}
+.apple-detail-row > label { margin: 0; padding: 0; }
+.apple-detail-row > .flex { min-width: 0; }
+
+@media (min-width: 768px) {
+  .apple-detail-pane { margin: 0 12px 12px; border: 1px solid var(--separator); }
+  .apple-detail-pane > div { padding: 16px 18px; }
+}
+
 @media (max-width: 767px) {
   .apple-group { border-radius: 18px; box-shadow: none; }
   .apple-sheet { border-radius: 28px 28px 0 0; }
   .apple-tabbar { min-height: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .apple-password-detail-backdrop {
+    position: fixed;
+    z-index: 69;
+    inset: 0;
+    display: block;
+    background: rgba(0, 0, 0, 0.26);
+    backdrop-filter: blur(2px);
+  }
+  .apple-password-detail {
+    border-radius: 26px 26px 0 0;
+  }
+  .apple-password-detail-row { grid-template-columns: 78px minmax(0, 1fr); }
+  .apple-mobile-detail-sheet {
+    position: fixed;
+    z-index: 70;
+    right: 0;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    max-height: min(72dvh, 680px);
+    overflow-y: auto;
+    border: 1px solid var(--separator);
+    border-bottom: 0;
+    border-radius: 28px 28px 0 0;
+    box-shadow: 0 -18px 54px rgba(0, 0, 0, 0.18);
+    background: var(--elevated-bg);
+  }
+  .apple-detail-row { grid-template-columns: 1fr; gap: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

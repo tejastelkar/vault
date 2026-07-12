@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ChevronDownIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
+import { ChevronDownIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon, EyeIcon, EyeOffIcon, ExternalLinkIcon, XIcon, CopyIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -85,6 +85,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   
   // New Item State
   const [newTitle, setNewTitle] = useState("");
@@ -105,6 +106,19 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
       }, 100);
     }
   }, [focusedItemId]);
+
+  useEffect(() => {
+    setIsPasswordVisible(false);
+  }, [expandedId]);
+
+  useEffect(() => {
+    if (!expandedId) return;
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandedId(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [expandedId]);
 
   const fetchItems = useCallback(async (force = false) => {
     // Check cache first
@@ -349,6 +363,83 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
 
   const health = useMemo(() => getVaultHealthScore(items), [items]);
   const dupeIds = useMemo(() => findDuplicateIds(items), [items]);
+  const selectedItem = useMemo(() => items.find((item) => item.id === expandedId) ?? null, [items, expandedId]);
+
+  const renderPasswordDetail = (item: DecryptedItem) => {
+    const parsed = parsePlaintext(item.plaintext);
+    const strength = getStrength(item.plaintext);
+    const password = parsed.password || (!parsed.isJson && !parsed.username ? item.plaintext : null);
+    const domain = item.domain || parsed.domain;
+    const href = domain ? (/^https?:\/\//i.test(domain) ? domain : `https://${domain}`) : null;
+
+    const DetailValue = ({ label, value, copyLabel = label, concealed = false }: { label: string; value: string; copyLabel?: string; concealed?: boolean }) => (
+      <div className="apple-password-detail-row">
+        <span className="type-caption text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`flex-1 min-w-0 truncate text-[15px] ${concealed ? "font-mono tracking-[0.12em]" : ""}`}>
+            {concealed && !isPasswordVisible ? "••••••••••••" : value}
+          </span>
+          {concealed && (
+            <button type="button" onClick={() => setIsPasswordVisible((visible) => !visible)} className="apple-password-icon-button" aria-label={isPasswordVisible ? "Conceal password" : "Reveal password"}>
+              {isPasswordVisible ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+            </button>
+          )}
+          <button type="button" onClick={() => copyToClipboard(value, copyLabel)} className="apple-password-icon-button" aria-label={`Copy ${label.toLowerCase()}`}>
+            <CopyIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+
+    return (
+      <>
+        <button className="apple-password-detail-backdrop" aria-label="Close password details" onClick={() => setExpandedId(null)} />
+        <motion.aside
+          data-password-detail
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-detail-title"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 12 }}
+          className="apple-password-detail apple-mobile-detail-sheet"
+        >
+          <div className="flex items-start gap-3 px-5 py-4 border-b border-border/70">
+            <div className="w-11 h-11 rounded-[12px] bg-secondary flex items-center justify-center text-lg font-bold text-foreground/60 shrink-0">{item.title.charAt(0).toUpperCase()}</div>
+            <div className="flex-1 min-w-0">
+              <h3 id="password-detail-title" className="text-[20px] font-semibold tracking-tight truncate">{item.title}</h3>
+              <p className="text-[13px] text-muted-foreground mt-0.5">{item.category}</p>
+            </div>
+            <button type="button" onClick={() => setExpandedId(null)} className="apple-password-icon-button" aria-label="Close password details"><XIcon className="w-4 h-4" /></button>
+          </div>
+
+          <div className="px-5 py-4">
+            <div className="flex items-center gap-2 mb-4">
+              <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${strength.bg}/10 ${strength.color}`}>{strength.label}</span>
+              {dupeIds.has(item.id) && <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-500">Reused</span>}
+              <button type="button" onClick={(e) => handleToggleFavorite(item.id, item.is_favorite, e)} className="ml-auto apple-password-icon-button" aria-label="Toggle favorite">
+                <StarIcon className={`w-4 h-4 ${item.is_favorite ? "fill-primary text-primary" : ""}`} />
+              </button>
+            </div>
+            <div className="apple-password-detail-group">
+              {parsed.username && <DetailValue label="Username" value={parsed.username} />}
+              {password && <DetailValue label="Password" value={password} concealed />}
+              {href && (
+                <div className="apple-password-detail-row">
+                  <span className="type-caption text-muted-foreground">Website</span>
+                  <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[15px] text-primary min-w-0">
+                    <span className="truncate">{domain}</span><ExternalLinkIcon className="w-4 h-4 shrink-0" />
+                  </a>
+                </div>
+              )}
+              {parsed.notes && <DetailValue label="Notes" value={parsed.notes} copyLabel="Notes" />}
+            </div>
+            <button type="button" onClick={(e) => handleDeleteItem(item.id, e)} className="w-full mt-5 min-h-11 rounded-xl bg-destructive/10 text-destructive text-[15px] font-semibold hover:bg-destructive/15 transition-colors">Delete Password</button>
+          </div>
+        </motion.aside>
+      </>
+    );
+  };
 
   return (
     <div className="apple-surface w-full relative pb-20">
@@ -468,13 +559,13 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
         </div>
       </div>
 
-      <div className="w-full">
+      <div className="apple-master-detail apple-password-master-detail w-full">
         {loading ? (
           <PasswordListSkeleton />
         ) : items.length === 0 ? (
           <EmptyState type="passwords" onCta={() => setIsAddOpen(true)} />
         ) : (
-          <motion.div layout className="space-y-7">
+          <motion.div layout data-password-master className="apple-password-master apple-master-list space-y-7">
             <AnimatePresence>
             {Object.entries(
               items.reduce((acc, item) => {
@@ -598,13 +689,13 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
 
                           {/* Expanded detail — Apple Passwords style */}
                           <AnimatePresence initial={false}>
-                          {isExpanded && !isSelectionMode && (
+                          {false && isExpanded && !isSelectionMode && (
                             <motion.div
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: "auto", opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
                               transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
-                              className="overflow-hidden"
+                              className="apple-detail-pane apple-mobile-detail-sheet overflow-hidden"
                             >
                               <div className="px-4 pb-4 pt-1 space-y-3 bg-black/[0.015] dark:bg-white/[0.02]">
                                 {/* Strength + dupe badges */}
@@ -652,14 +743,14 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
                                     return (
                                       <div className="space-y-3">
                                         {username && (
-                                          <div>
+                                          <div className="apple-detail-row">
                                             <label className="text-[12px] text-muted-foreground uppercase tracking-wider font-semibold mb-1 block pl-1">Username</label>
                                             <div className="flex gap-2">
                                               <div className="flex-1 bg-secondary rounded-xl px-4 py-3 font-mono text-[15px] text-foreground tracking-wide break-all select-all border border-border/50">
                                                 {username}
                                               </div>
                                               <button
-                                                onClick={() => copyToClipboard(username, "Username")}
+                                                onClick={() => copyToClipboard(username!, "Username")}
                                                 className="px-4 rounded-xl font-semibold bg-secondary hover:bg-secondary/80 active:scale-[0.98] transition-all border border-border/50 text-foreground"
                                               >
                                                 Copy
@@ -668,14 +759,14 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
                                           </div>
                                         )}
                                         {password && (
-                                          <div>
+                                          <div className="apple-detail-row">
                                             <label className="text-[12px] text-muted-foreground uppercase tracking-wider font-semibold mb-1 block pl-1">Password</label>
                                             <div className="flex gap-2">
                                               <div className="flex-1 bg-secondary rounded-xl px-4 py-3 font-mono text-[15px] text-foreground tracking-wide break-all select-all border border-border/50">
                                                 {password}
                                               </div>
                                               <button
-                                                onClick={() => copyToClipboard(password, "Password")}
+                                                onClick={() => copyToClipboard(password!, "Password")}
                                                 className="px-4 rounded-xl font-semibold bg-primary text-white hover:bg-primary/90 active:scale-[0.98] transition-all"
                                               >
                                                 Copy
@@ -684,14 +775,14 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
                                           </div>
                                         )}
                                         {notes && (
-                                          <div>
+                                          <div className="apple-detail-row">
                                             <label className="text-[12px] text-muted-foreground uppercase tracking-wider font-semibold mb-1 block pl-1">Extra Details</label>
                                             <div className="flex gap-2">
                                               <div className="flex-1 bg-secondary rounded-xl px-4 py-3 font-mono text-[14px] text-foreground tracking-wide whitespace-pre-wrap break-words select-all border border-border/50">
                                                 {notes}
                                               </div>
                                               <button
-                                                onClick={() => copyToClipboard(notes, "Extra Details")}
+                                                onClick={() => copyToClipboard(notes!, "Extra Details")}
                                                 className="px-4 rounded-xl font-semibold bg-secondary hover:bg-secondary/80 active:scale-[0.98] transition-all border border-border/50 text-foreground"
                                               >
                                                 Copy
@@ -747,6 +838,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
             </AnimatePresence>
           </motion.div>
         )}
+        <AnimatePresence>{selectedItem && !isSelectionMode && renderPasswordDetail(selectedItem)}</AnimatePresence>
       </div>
 
       {/* Floating Action Bar for Bulk Selection */}

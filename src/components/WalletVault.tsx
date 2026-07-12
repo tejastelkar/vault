@@ -294,7 +294,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     }
   };
 
-  const toggleSelection = (id: string, e: React.MouseEvent) => {
+  const toggleSelection = (id: string, e: React.SyntheticEvent) => {
     e.stopPropagation();
     const newSet = new Set(selectedIds);
     if (newSet.has(id)) {
@@ -569,7 +569,8 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
                   expanded={expandedCardId === item.id}
                   stackIndex={cards.indexOf(item)}
                   stacked={cards.length > 1}
-                  active={expandedCardId === item.id}
+                  active={expandedCardId === item.id || (!expandedCardId && cards.indexOf(item) === cards.length - 1)}
+                  hasDetails={Boolean(item.payload.pin || item.payload.upi_pin || item.payload.extra_details)}
                   onSelect={(event) => toggleSelection(item.id, event)}
                   onToggle={() => setExpandedCardId(expandedCardId === item.id ? null : item.id)}
                   onDelete={() => handleDelete(item.id)}
@@ -637,72 +638,6 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
                 </TiltCard>
                 )}
 
-                {/* Expandable PIN / UPI / Extra Details Panel */}
-                {(item.payload.pin || item.payload.upi_pin || item.payload.extra_details) && (
-                  <div className="mt-2">
-                    <button
-                      onClick={() => setExpandedCardId(expandedCardId === item.id ? null : item.id)}
-                      className="hidden w-full items-center justify-between px-4 py-2.5 rounded-xl bg-secondary/60 hover:bg-secondary transition-colors text-[13px] font-medium text-muted-foreground"
-                    >
-                      <span>Card Details &amp; PINs</span>
-                      <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${expandedCardId === item.id ? 'rotate-180' : ''}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    <AnimatePresence>
-                      {expandedCardId === item.id && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="px-4 pt-3 pb-4 bg-secondary/40 rounded-xl mt-1 space-y-3">
-                            {item.payload.pin && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-[12px] uppercase tracking-widest text-muted-foreground font-medium">Card PIN</span>
-                                <div
-                                  className="group/pin flex items-center gap-2 cursor-pointer"
-                                  onClick={() => copyToClipboard(item.payload.pin || "")}
-                                  title="Click to copy"
-                                >
-                                  <span className="font-mono text-[15px] font-semibold text-foreground group-hover/pin:opacity-0 transition-opacity select-none">{"•".repeat(item.payload.pin.length)}</span>
-                                  <span className="font-mono text-[15px] font-semibold text-foreground absolute opacity-0 group-hover/pin:opacity-100 transition-opacity">{item.payload.pin}</span>
-                                  <svg className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover/pin:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                </div>
-                              </div>
-                            )}
-                            {item.payload.upi_pin && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-[12px] uppercase tracking-widest text-muted-foreground font-medium">UPI PIN</span>
-                                <div
-                                  className="group/upi flex items-center gap-2 cursor-pointer relative"
-                                  onClick={() => copyToClipboard(item.payload.upi_pin || "")}
-                                  title="Click to copy"
-                                >
-                                  <span className="font-mono text-[15px] font-semibold text-foreground group-hover/upi:opacity-0 transition-opacity select-none">{"•".repeat(item.payload.upi_pin.length)}</span>
-                                  <span className="font-mono text-[15px] font-semibold text-foreground absolute right-6 opacity-0 group-hover/upi:opacity-100 transition-opacity">{item.payload.upi_pin}</span>
-                                  <svg className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover/upi:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                </div>
-                              </div>
-                            )}
-                            {item.payload.extra_details && (
-                              <div>
-                                <span className="text-[12px] uppercase tracking-widest text-muted-foreground font-medium block mb-1">Other Details</span>
-                                <p className="text-[13px] text-foreground/80 whitespace-pre-wrap leading-relaxed">{item.payload.extra_details}</p>
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
               </motion.div>
 
             ))}
@@ -710,12 +645,60 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
           </motion.div>
         );
 
+        const activeCard = filteredCards.find(item => item.id === expandedCardId) ?? filteredCards.at(-1);
+
         return (
           <div className="space-y-5">
             <div className="mx-auto flex w-full max-w-sm rounded-xl bg-secondary/70 p-1" role="tablist" aria-label="Card type">
               {(["all", "credit", "debit"] as WalletFilter[]).map(filter => <button key={filter} onClick={() => setWalletFilter(filter)} className={`apple-pressed min-h-9 flex-1 rounded-[10px] text-[13px] font-semibold capitalize ${walletFilter === filter ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>{filter === "all" ? "All" : filter === "credit" ? "Credit" : "Debit"}</button>)}
             </div>
-            <CardGrid cards={filteredCards} />
+            {activeCard ? (
+              <div className="apple-wallet-master-detail">
+                <CardGrid cards={filteredCards} />
+                <aside className="apple-wallet-detail-pane apple-group" aria-label={`${activeCard.title} details`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="type-group-label">Selected card</p>
+                      <h3 className="mt-1 truncate text-[21px] font-semibold tracking-[-0.025em]">{activeCard.title}</h3>
+                    </div>
+                    <div className="flex h-9 min-w-20 justify-end">
+                      <CardNetworkLogo network={getCardNetwork(activeCard.payload.number || "")} />
+                    </div>
+                  </div>
+
+                  <dl className="mt-5 divide-y divide-border/70">
+                    <div className="py-3">
+                      <dt className="type-metadata">Card number</dt>
+                      <dd className="mt-1 flex items-center justify-between gap-3">
+                        <span className="truncate font-mono text-[15px] tabular-nums">{(activeCard.payload.number || "").replace(/(\d{4})/g, "$1 ").trim()}</span>
+                        <button type="button" className="apple-pressed min-h-9 rounded-full bg-secondary px-3 text-[13px] font-semibold text-primary" onClick={() => copyToClipboard(activeCard.payload.number || "")}>Copy</button>
+                      </dd>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 py-3">
+                      <div><dt className="type-metadata">Cardholder</dt><dd className="mt-1 truncate text-[15px] font-medium">{activeCard.payload.name || "Card holder"}</dd></div>
+                      <div><dt className="type-metadata">Expires</dt><dd className="mt-1 font-mono text-[15px] tabular-nums">{activeCard.payload.expiry || "••/••"}</dd></div>
+                    </div>
+                  </dl>
+
+                  {expandedCardId === activeCard.id && (activeCard.payload.pin || activeCard.payload.upi_pin || activeCard.payload.extra_details) && (
+                    <div className="mt-3 rounded-2xl bg-secondary/60 p-4" aria-live="polite">
+                      <p className="type-group-label mb-3">Secure details</p>
+                      <div className="space-y-3 text-[14px]">
+                        {activeCard.payload.pin && <button type="button" className="flex min-h-9 w-full items-center justify-between" onClick={() => copyToClipboard(activeCard.payload.pin || "")}><span>Card PIN</span><span className="font-mono">•••• · Copy</span></button>}
+                        {activeCard.payload.upi_pin && <button type="button" className="flex min-h-9 w-full items-center justify-between" onClick={() => copyToClipboard(activeCard.payload.upi_pin || "")}><span>UPI PIN</span><span className="font-mono">•••• · Copy</span></button>}
+                        {activeCard.payload.extra_details && <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{activeCard.payload.extra_details}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  <button type="button" onClick={() => handleDelete(activeCard.id)} className="apple-pressed mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-destructive/10 px-4 text-[14px] font-semibold text-destructive">
+                    <TrashIcon className="h-4 w-4" /> Delete Card
+                  </button>
+                </aside>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-[14px] text-muted-foreground">No cards match this filter.</div>
+            )}
           </div>
         );
       })() : null}

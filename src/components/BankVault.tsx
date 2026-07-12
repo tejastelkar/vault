@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { BuildingIcon, TrashIcon, CopyIcon, CameraIcon, Loader2Icon, MoreHorizontalIcon, CheckSquareIcon, SquareIcon, ChevronRightIcon } from "lucide-react";
+import { BuildingIcon, TrashIcon, CopyIcon, CameraIcon, Loader2Icon, MoreHorizontalIcon, CheckSquareIcon, SquareIcon, ChevronRightIcon, XIcon } from "lucide-react";
 
 interface SecureWallet {
   id: string;
@@ -141,6 +141,15 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
       }, 100);
     }
   }, [focusedItemId]);
+
+  useEffect(() => {
+    if (!expandedBankId) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpandedBankId(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [expandedBankId]);
 
   const typeText = async (text: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
     setter("");
@@ -271,8 +280,8 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
     }
   };
 
-  const handleDeleteItem = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteItem = async (id: string, e?: React.SyntheticEvent) => {
+    e?.stopPropagation();
     if (!confirm("Are you sure you want to delete this item?")) return;
     const { error } = await supabase.from("secure_wallet").delete().eq("id", id);
     if (!error) {
@@ -311,6 +320,12 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
+
+  const selectedBank = items.find((item) => item.id === expandedBankId) ?? null;
+  const accountType = selectedBank?.payload.extra_details
+    ?.split("\n")
+    .find((line) => /account\s*type/i.test(line))
+    ?.split(":").slice(1).join(":").trim();
 
   return (
     <div className="apple-surface w-full relative" style={{ perspective: "1500px" }}>
@@ -439,13 +454,13 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
         </div>
       </div>
 
-      <div className="w-full">
+      <div className="apple-master-detail apple-bank-master-detail w-full">
         {loading ? (
           <WalletSkeleton />
         ) : items.length === 0 ? (
           <EmptyState type="bank" onCta={() => setIsAddOpen(true)} />
         ) : (
-          <motion.div layout className="apple-bank-list apple-grouped-list">
+          <motion.div layout className="apple-bank-list apple-master-list apple-grouped-list" aria-label="Bank accounts">
             <AnimatePresence>
             {items.map((item) => (
               <motion.div 
@@ -457,11 +472,14 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
                 transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                 key={item.id} 
               >
-                  <div 
-                    className={`apple-bank-row apple-grouped-row w-full relative overflow-hidden group ${isSelectionMode && selectedIds.has(item.id) ? 'ring-2 ring-primary/30' : ''}`}
+                  <button
+                    type="button"
+                    className={`apple-bank-row apple-grouped-row w-full relative overflow-hidden group text-left ${isSelectionMode && selectedIds.has(item.id) ? 'ring-2 ring-primary/30' : ''}`}
                     onClick={(e) => {
                       if (isSelectionMode) toggleSelection(item.id, e); else setExpandedBankId(expandedBankId === item.id ? null : item.id);
                     }}
+                    aria-expanded={expandedBankId === item.id}
+                    aria-controls={`bank-detail-${item.id}`}
                   >
                     {isSelectionMode && (
                       <div className="absolute top-4 left-4 z-20">
@@ -481,67 +499,32 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
                       <ChevronRightIcon className={`h-5 w-5 text-muted-foreground transition-transform ${expandedBankId === item.id ? "rotate-90" : ""}`} />
                     </div>
 
-                    <div className={`${expandedBankId === item.id ? "block" : "hidden"} space-y-4 relative z-10 mt-5 border-t border-border/60 pt-4`}>
-                      <div className="flex flex-col">
-                        <span className="text-[12px] text-muted-foreground uppercase tracking-widest font-medium mb-1">IFSC / Routing Code</span>
-                        <div 
-                          className="font-mono text-[16px] text-foreground font-semibold cursor-pointer flex items-center gap-2 group/copy hover:text-primary transition-colors"
-                          onClick={() => copyToClipboard(item.payload.routing || "")}
-                        >
-                          {item.payload.routing || ""}
-                          <CopyIcon className="w-3 h-3 opacity-0 group-hover/copy:opacity-100" />
-                        </div>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[12px] text-muted-foreground uppercase tracking-widest font-medium mb-1">Account Number</span>
-                        <div 
-                          className="font-mono text-[16px] text-foreground font-semibold cursor-pointer flex items-center gap-2 group/copy hover:text-primary transition-colors"
-                          onClick={() => copyToClipboard(item.payload.account || "")}
-                        >
-                          {item.payload.account || ""}
-                          <CopyIcon className="w-3 h-3 opacity-0 group-hover/copy:opacity-100" />
-                        </div>
-                      </div>
-                      {item.payload.extra_details && (
-                        <div className="pt-2 border-t border-border/50">
-                          <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium block mb-2">Additional Info</span>
-                          {item.payload.extra_details.split("\n").filter(Boolean).map((line, i) => {
-                            const [label, ...rest] = line.split(":");
-                            const value = rest.join(":").trim();
-                            return value ? (
-                              <div key={i} className="flex items-center justify-between py-1">
-                                <span className="text-[12px] text-muted-foreground">{label.trim()}</span>
-                                <div
-                                  className="group/extra flex items-center gap-2 cursor-pointer relative"
-                                  onClick={() => copyToClipboard(value)}
-                                  title="Click to copy"
-                                >
-                                  <span className="font-mono text-[13px] font-semibold text-foreground group-hover/extra:opacity-0 transition-opacity select-none">{"•".repeat(Math.min(value.length, 8))}</span>
-                                  <span className="font-mono text-[13px] font-semibold text-foreground absolute right-5 opacity-0 group-hover/extra:opacity-100 transition-opacity">{value}</span>
-                                  <CopyIcon className="w-3 h-3 text-muted-foreground opacity-0 group-hover/extra:opacity-100 transition-opacity" />
-                                </div>
-                              </div>
-                            ) : (
-                              <p key={i} className="text-[12px] text-foreground/70">{line}</p>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Delete button that appears on hover */}
-                    <button 
-                      onClick={(e) => handleDeleteItem(item.id, e)}
-                      className="absolute top-4 right-4 w-8 h-8 rounded-full bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground z-20"
-                      title="Delete Bank Account"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
+                  </button>
               </motion.div>
             ))}
             </AnimatePresence>
           </motion.div>
+        )}
+
+        {selectedBank && (
+          <>
+            <button type="button" className="apple-bank-detail-backdrop" aria-label="Close account details" onClick={() => setExpandedBankId(null)} />
+            <aside id={`bank-detail-${selectedBank.id}`} className="apple-bank-detail apple-detail-pane" role="dialog" aria-modal="true" aria-labelledby={`bank-detail-title-${selectedBank.id}`}>
+              <div className="apple-sheet-grabber" />
+              <header className="flex items-start justify-between gap-4 border-b border-border/60 pb-4">
+                <div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10"><BuildingIcon className="h-5 w-5 text-primary" /></span><div><p className="type-group-label">Bank account</p><h3 id={`bank-detail-title-${selectedBank.id}`} className="type-section-title mt-1">{selectedBank.title}</h3></div></div>
+                <button type="button" aria-label="Close account details" onClick={() => setExpandedBankId(null)} className="grid h-9 w-9 place-items-center rounded-full bg-muted text-muted-foreground hover:text-foreground"><XIcon className="h-4 w-4" /></button>
+              </header>
+              <div className="divide-y divide-border/60">
+                <DetailRow label="Account Holder" value={selectedBank.payload.name || "Not provided"} />
+                <DetailRow label="Account Type" value={accountType || "Bank account"} />
+                <DetailRow label="IFSC / Routing Code" value={selectedBank.payload.routing || "—"} copy />
+                <DetailRow label="Account Number" value={selectedBank.payload.account || "—"} copy />
+              </div>
+              {selectedBank.payload.extra_details && <div className="mt-4 rounded-2xl bg-muted/45 p-4"><p className="type-group-label mb-2">Additional Info</p><p className="whitespace-pre-wrap text-[13px] text-muted-foreground">{selectedBank.payload.extra_details}</p></div>}
+              <Button variant="ghost" onClick={(e) => handleDeleteItem(selectedBank.id, e)} className="mt-5 w-full rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"><TrashIcon className="h-4 w-4" /> Delete Account</Button>
+            </aside>
+          </>
         )}
       </div>
       {/* Floating Action Bar for Bulk Selection */}
@@ -563,4 +546,8 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
       )}
     </div>
   );
+
+  function DetailRow({ label, value, copy = false }: { label: string; value: string; copy?: boolean }) {
+    return <div className="flex min-h-16 items-center justify-between gap-4 py-3"><div className="min-w-0"><p className="type-group-label">{label}</p><p className={`mt-1 truncate text-[15px] font-medium ${copy ? "font-mono" : ""}`}>{value}</p></div>{copy && <button type="button" aria-label={`Copy ${label}`} onClick={() => copyToClipboard(value)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/15"><CopyIcon className="h-4 w-4" /></button>}</div>;
+  }
 }

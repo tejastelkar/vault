@@ -395,76 +395,56 @@ export default function Home() {
 
         {/* -- Header -- */}
         <header
-          className="ios-mobile-header apple-toolbar flex items-center gap-2 px-4 md:px-6 shrink-0 sidebar-vibrancy"
+          className="ios-mobile-header apple-toolbar apple-adaptive-header flex items-center gap-2 px-4 md:px-6 shrink-0 sidebar-vibrancy"
           style={{ borderColor: "var(--border)", minHeight: "52px", height: "52px" }}
         >
           {/* Desktop: current section title */}
-          <span className="text-[16px] font-semibold text-foreground hidden md:block tracking-tight">
+          <span className="apple-header-title text-[16px] font-semibold text-foreground hidden md:block tracking-tight">
             {ALL_TABS_WITH_PROFILE.find(t => t.tab === activeTab)?.label}
           </span>
 
-          {/* Mobile: icon + current section name */}
-          <div className="flex items-center gap-2.5 md:hidden min-w-0">
+          {/* Mobile: persistent app identity; the destination title lives in content. */}
+          <div className="apple-mobile-identity flex items-center gap-2.5 md:hidden min-w-0">
             <div className="w-[32px] h-[32px] rounded-[10px] bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
               <ShieldCheckIcon className="w-[16px] h-[16px] text-white" strokeWidth={2.2} />
             </div>
-            <div className="flex flex-col justify-center leading-none min-w-0">
-              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-[0.14em]">
-                Telkar Vault
-              </span>
-              <span className="text-[17px] font-semibold text-foreground tracking-tight leading-snug truncate">
-                {ALL_TABS_WITH_PROFILE.find(t => t.tab === activeTab)?.label ?? "Home"}
-              </span>
-            </div>
+            <span className="text-[15px] font-semibold text-foreground tracking-[-0.015em] truncate">Telkar Vault</span>
           </div>
 
           <div className="flex-1" />
 
-          {/* Magic Import Button */}
-          <button
-            onClick={() => setIsGlobalImportOpen(true)}
-            className="hidden sm:flex items-center gap-2 h-[32px] px-3 rounded-[9px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20 mr-2"
-          >
-            <Wand2Icon className="w-3.5 h-3.5 shrink-0" />
-            <span className="text-[13px] font-medium hidden lg:block">Magic Import</span>
-          </button>
-
-          {/* Search -- pill on sm+ */}
+          {/* Desktop Spotlight-style search */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="hidden sm:flex items-center gap-2 h-[32px] px-3 rounded-[9px] bg-black/5 dark:bg-white/7 text-muted-foreground hover:bg-black/8 dark:hover:bg-white/10 transition-colors border border-black/5 dark:border-white/5"
+            className="apple-header-search hidden md:flex items-center gap-2 h-[34px] px-3 rounded-[10px] bg-black/5 dark:bg-white/7 text-muted-foreground hover:bg-black/8 dark:hover:bg-white/10 transition-colors border border-black/5 dark:border-white/5"
           >
             <SearchIcon className="w-3.5 h-3.5 shrink-0" />
-            <span className="text-[13px] hidden lg:block">Search</span>
-            <span className="text-[11px] font-medium hidden lg:flex items-center gap-0.5 ml-1 opacity-50 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded">
-              ⌘K
-            </span>
+            <span className="text-[13px]">Search your vault</span>
+            <span className="text-[11px] font-medium ml-auto opacity-50 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded">⌘K</span>
           </button>
 
-          {/* Mobile: Magic Import icon button */}
-          <button
-            onClick={() => setIsGlobalImportOpen(true)}
-            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-full text-primary hover:bg-primary/10 active:scale-90 transition-all mr-1"
-            aria-label="Magic Import"
-          >
-            <Wand2Icon className="w-[19px] h-[19px]" />
-          </button>
+          <div className="apple-header-actions flex items-center gap-1 md:gap-2">
+            <button
+              onClick={() => setIsGlobalImportOpen(true)}
+              className="hidden md:flex items-center gap-2 h-[34px] px-3 rounded-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
+            >
+              <Wand2Icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[13px] font-medium hidden lg:block">Magic Import</span>
+            </button>
 
-          {/* Mobile: search icon button 44px */}
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/7 active:scale-90 transition-all"
-            aria-label="Search"
-          >
-            <SearchIcon className="w-[19px] h-[19px]" />
-          </button>
+            <button onClick={() => setIsGlobalImportOpen(true)} className="md:hidden w-10 h-10 flex items-center justify-center rounded-full text-primary hover:bg-primary/10 active:scale-90 transition-all" aria-label="Magic Import">
+              <Wand2Icon className="w-[19px] h-[19px]" />
+            </button>
 
-          {/* Theme toggle */}
-          <button
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-full md:rounded-[8px] hover:bg-black/5 dark:hover:bg-white/7 active:scale-90 transition-all text-muted-foreground"
-            aria-label="Toggle theme"
-          >
+            <button onClick={() => setSearchOpen(true)} className="md:hidden w-10 h-10 flex items-center justify-center rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/7 active:scale-90 transition-all" aria-label="Search">
+              <SearchIcon className="w-[19px] h-[19px]" />
+            </button>
+
+            <button
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="apple-theme-toggle hidden md:flex w-8 h-8 items-center justify-center rounded-[8px] hover:bg-black/5 dark:hover:bg-white/7 active:scale-90 transition-all text-muted-foreground"
+              aria-label="Toggle theme"
+            >
             <AnimatePresence mode="wait" initial={false}>
               {resolvedTheme === "dark" ? (
                 <motion.span
@@ -490,22 +470,14 @@ export default function Home() {
                 </motion.span>
               )}
             </AnimatePresence>
-          </button>
+            </button>
 
-          {/* Profile avatar */}
-          <button
-            onClick={() => handleNavigate("profile")}
-            className="relative w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-full shrink-0 active:scale-90 transition-transform"
-            aria-label="Profile"
-          >
-            <div className={`w-[30px] h-[30px] rounded-full overflow-hidden flex items-center justify-center text-[12px] font-bold bg-secondary text-muted-foreground ring-2 transition-all ${
-              activeTab === "profile" ? "ring-primary" : "ring-transparent"
-            }`}>
-              {avatarUrl
-                ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                : avatarLetter}
-            </div>
-          </button>
+            <button onClick={() => handleNavigate("profile")} className="relative w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-full shrink-0 active:scale-90 transition-transform" aria-label="Profile">
+              <div className={`w-[30px] h-[30px] rounded-full overflow-hidden flex items-center justify-center text-[12px] font-bold bg-secondary text-muted-foreground ring-2 transition-all ${activeTab === "profile" ? "ring-primary" : "ring-transparent"}`}>
+                {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : avatarLetter}
+              </div>
+            </button>
+          </div>
         </header>
 
         {/* ── Search overlay ─────────────────────────────────── */}

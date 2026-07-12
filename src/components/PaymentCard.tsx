@@ -19,7 +19,8 @@ export interface PaymentCardProps {
   stackIndex: number;
   stacked: boolean;
   active: boolean;
-  onSelect: (event: React.MouseEvent) => void;
+  hasDetails: boolean;
+  onSelect: (event: React.SyntheticEvent) => void;
   onToggle: () => void;
   onDelete: () => void;
   onCopy: (value: string) => void;
@@ -27,7 +28,7 @@ export interface PaymentCardProps {
 
 export function PaymentCard({
   id, title, number, name, expiry, cvv, subtype, colorClass, selected,
-  selectionMode, expanded, stackIndex, stacked, active, onSelect, onToggle, onDelete, onCopy,
+  selectionMode, expanded, stackIndex, stacked, active, hasDetails, onSelect, onToggle, onDelete, onCopy,
 }: PaymentCardProps) {
   const network = getCardNetwork(number);
   const formattedNumber = number.replace(/(\d{4})/g, "$1 ").trim();
@@ -42,11 +43,22 @@ export function PaymentCard({
       className={`group relative ${stacked ? "apple-wallet-card-stacked" : ""} ${active ? "apple-wallet-card-active" : ""}`}
     >
       <div
-        className={`relative flex aspect-[1.586/1] w-full flex-col justify-between overflow-hidden rounded-[26px] bg-gradient-to-br p-6 text-white shadow-[0_24px_55px_rgba(0,0,0,0.24)] ring-1 ring-white/20 sm:p-7 ${colorClass} ${selectionMode ? "cursor-pointer" : ""}`}
-        onClick={selectionMode ? onSelect : undefined}
+        className={`apple-wallet-card-face relative flex aspect-[1.586/1] w-full cursor-pointer flex-col justify-between overflow-hidden rounded-[26px] bg-gradient-to-br p-6 text-white shadow-[0_24px_55px_rgba(0,0,0,0.24)] ring-1 ring-white/20 sm:p-7 ${colorClass}`}
+        onClick={selectionMode ? onSelect : onToggle}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (selectionMode) onSelect(event);
+            else onToggle();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={active}
+        aria-label={`${title} card${active ? ", expanded" : ", collapsed"}`}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(255,255,255,.32),transparent_42%)]" />
-        <div className="relative z-10 flex items-start justify-between gap-4">
+        <div className="apple-wallet-card-header relative z-10 flex items-start justify-between gap-4">
           <div className={selectionMode ? "pl-8" : ""}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/65">{subtype ?? "payment"} card</p>
             <h3 className="mt-1 text-[19px] font-semibold tracking-[-0.025em] text-white">{title}</h3>
@@ -62,7 +74,7 @@ export function PaymentCard({
           </div>
         )}
 
-        <div className="relative z-10">
+        <div className="apple-wallet-card-body relative z-10">
           <button type="button" onClick={(event) => { event.stopPropagation(); onCopy(number); }} className="tabular-nums text-left font-mono text-[20px] tracking-[0.13em] text-white sm:text-[24px]" aria-label="Copy card number">
             {formattedNumber}
           </button>
@@ -81,10 +93,12 @@ export function PaymentCard({
         <button type="button" onClick={(event) => { event.stopPropagation(); onDelete(); }} className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/20 text-white/80 opacity-0 backdrop-blur-md transition-opacity hover:bg-red-500 group-hover:opacity-100 focus:opacity-100" aria-label={`Delete ${title}`}><TrashIcon className="h-4 w-4" /></button>
       </div>
 
-      <button type="button" onClick={onToggle} className="apple-group mt-2 flex min-h-11 w-full items-center justify-between px-4 text-[13px] font-semibold text-muted-foreground" aria-expanded={expanded}>
-        Card details and PINs
-        <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
-      </button>
+      {hasDetails && (
+        <button type="button" onClick={onToggle} className="apple-wallet-card-details apple-group mt-2 flex min-h-11 w-full items-center justify-between px-4 text-[13px] font-semibold text-muted-foreground" aria-expanded={expanded}>
+          {expanded ? "Hide secure details" : "Show secure details"}
+          <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </button>
+      )}
     </motion.article>
   );
 }
