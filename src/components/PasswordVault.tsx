@@ -182,10 +182,12 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
       }
 
       let importedCount = 0;
+      let updatedCount = 0;
       for (const item of parsedPasswords) {
         if (!item.password && !item.extra_details) continue;
         
         const title = item.title || "Unknown Service";
+        const parsedUsername = item.username ? item.username.trim() : null;
         
         let secretText = "";
         if (item.username && item.password) {
@@ -202,19 +204,37 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
         
         const encrypted = await encryptText(secretText, masterPassword);
 
-        const { error } = await supabase.from("vault_items").insert({
-          user_id: user.id,
-          title: title,
-          encrypted_data: encrypted.ciphertext,
-          iv: encrypted.iv,
-          salt: encrypted.salt,
-          category: item.category || "Uncategorized",
-          domain: item.url || null,
+        const duplicate = items.find(existing => {
+          if (existing.title.toLowerCase() !== title.toLowerCase()) return false;
+          const isCombo = existing.plaintext.startsWith("Username: ") && existing.plaintext.includes("\nPassword: ");
+          const existingUsername = isCombo ? existing.plaintext.split("\n")[0].replace("Username: ", "").trim() : null;
+          return (existingUsername || "").toLowerCase() === (parsedUsername || "").toLowerCase();
         });
-        if (!error) importedCount++;
+
+        if (duplicate) {
+          const { error } = await supabase.from("vault_items").update({
+            encrypted_data: encrypted.ciphertext,
+            iv: encrypted.iv,
+            salt: encrypted.salt,
+            category: item.category || duplicate.category,
+            domain: item.url || duplicate.domain,
+          }).eq("id", duplicate.id);
+          if (!error) updatedCount++;
+        } else {
+          const { error } = await supabase.from("vault_items").insert({
+            user_id: user.id,
+            title: title,
+            encrypted_data: encrypted.ciphertext,
+            iv: encrypted.iv,
+            salt: encrypted.salt,
+            category: item.category || "Uncategorized",
+            domain: item.url || null,
+          });
+          if (!error) importedCount++;
+        }
       }
 
-      toast(`Magic imported ${importedCount} passwords!`, "success");
+      toast(`Magic imported ${importedCount} new, updated ${updatedCount} passwords!`, "success");
       setMagicNotesText("");
       setIsMagicImportOpen(false);
       invalidateCache("vault_items");
@@ -302,31 +322,62 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
           if (!user) throw new Error("No user found");
 
           const newItems = [];
+          let updatedCount = 0;
+
           for (const row of results.data as CsvPasswordRow[]) {
             // Find password and title in common CSV headers (1Password, Chrome, etc)
             const title = row.title || row.name || row.url || row.URL || "Imported Password";
             const password = row.password || row.Password;
+            const rawUsername = row.username || row.Username || row.login || row.Login || row.email || row.Email;
+            const parsedUsername = rawUsername ? rawUsername.trim() : null;
             
             if (!password) continue;
 
-            const encrypted = await encryptText(password, masterPassword);
-            newItems.push({
-              user_id: user.id,
-              title,
-              encrypted_data: encrypted.ciphertext,
-              iv: encrypted.iv,
-              salt: encrypted.salt,
-              category: "Uncategorized",
-              domain: null, // Skip AI on bulk import to prevent rate limits
+            let secretText = "";
+            if (parsedUsername) {
+               secretText = `Username: ${parsedUsername}\nPassword: ${password}`;
+            } else {
+               secretText = password;
+            }
+
+            const encrypted = await encryptText(secretText, masterPassword);
+            
+            const duplicate = items.find(existing => {
+              if (existing.title.toLowerCase() !== title.toLowerCase()) return false;
+              const isCombo = existing.plaintext.startsWith("Username: ") && existing.plaintext.includes("\nPassword: ");
+              const existingUsername = isCombo ? existing.plaintext.split("\n")[0].replace("Username: ", "").trim() : null;
+              return (existingUsername || "").toLowerCase() === (parsedUsername || "").toLowerCase();
             });
+
+            if (duplicate) {
+              const { error } = await supabase.from("vault_items").update({
+                encrypted_data: encrypted.ciphertext,
+                iv: encrypted.iv,
+                salt: encrypted.salt,
+              }).eq("id", duplicate.id);
+              if (!error) updatedCount++;
+            } else {
+              newItems.push({
+                user_id: user.id,
+                title,
+                encrypted_data: encrypted.ciphertext,
+                iv: encrypted.iv,
+                salt: encrypted.salt,
+                category: "Uncategorized",
+                domain: null,
+              });
+            }
           }
 
           if (newItems.length > 0) {
             const { error } = await supabase.from("vault_items").insert(newItems);
             if (error) throw error;
+          }
+          
+          if (newItems.length > 0 || updatedCount > 0) {
             invalidateCache("vault_items");
             fetchItems(true);
-            alert(`Successfully imported ${newItems.length} passwords!`);
+            alert(`Successfully imported ${newItems.length} new passwords and updated ${updatedCount} existing!`);
           } else {
             alert("No valid passwords found in the CSV. Make sure it has 'name' or 'url' and 'password' columns.");
           }
