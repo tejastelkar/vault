@@ -14,6 +14,13 @@ import { WalletVault } from "@/components/WalletVault";
 import { BankVault } from "@/components/BankVault";
 import { Profile } from "@/components/Profile";
 import { GlobalMagicImport } from "@/components/GlobalMagicImport";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { clearAllCaches, getCache } from "@/lib/vaultCache";
 import { clearKeyCache } from "@/lib/keyCache";
 import { aiSearchVault } from "./actions";
@@ -36,6 +43,7 @@ import {
   ArrowRightIcon,
   HashIcon,
   BuildingIcon,
+  MoreHorizontalIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -309,6 +317,7 @@ export default function Home() {
   const avatarLetter = sessionUser.email?.charAt(0).toUpperCase() ?? "U";
   const avatarUrl = sessionUser.user_metadata?.avatar_url as string | undefined;
   const displayName = (sessionUser.user_metadata?.full_name as string | undefined) ?? sessionUser.email?.split("@")[0] ?? "";
+  const activeTitle = ALL_TABS_WITH_PROFILE.find((item) => item.tab === activeTab)?.label ?? "Dashboard";
 
   return (
     <div className="ios-app-shell apple-app flex h-screen w-full overflow-hidden">
@@ -399,89 +408,37 @@ export default function Home() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-background">
 
         {/* -- Header -- */}
-        <header
-          className="ios-mobile-header apple-toolbar apple-adaptive-header flex items-center gap-2 px-4 md:px-6 shrink-0 sidebar-vibrancy"
-          style={{ borderColor: "var(--border)", minHeight: "52px", height: "52px" }}
-        >
-          {/* Desktop: current section title */}
-          <span className="apple-header-title text-[16px] font-semibold text-foreground hidden md:block tracking-tight">
-            {ALL_TABS_WITH_PROFILE.find(t => t.tab === activeTab)?.label}
-          </span>
-
-          {/* Mobile: persistent app identity; the destination title lives in content. */}
-          <div className="apple-mobile-identity flex items-center gap-2.5 md:hidden min-w-0">
-            <div className="w-[32px] h-[32px] rounded-[10px] bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-              <ShieldCheckIcon className="w-[16px] h-[16px] text-white" strokeWidth={2.2} />
-            </div>
-            <span className="text-[15px] font-semibold text-foreground tracking-[-0.015em] truncate">Telkar Vault</span>
+        <header className="vault-header">
+          <div className="vault-header-leading">
+            <span className="vault-header-title">{activeTitle}</span>
           </div>
 
-          <div className="flex-1" />
-
-          {/* Desktop Spotlight-style search */}
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="apple-header-search hidden md:flex items-center gap-2 h-[34px] px-3 rounded-[10px] bg-black/5 dark:bg-white/7 text-muted-foreground hover:bg-black/8 dark:hover:bg-white/10 transition-colors border border-black/5 dark:border-white/5"
-          >
-            <SearchIcon className="w-3.5 h-3.5 shrink-0" />
-            <span className="text-[13px]">Search your vault</span>
-            <span className="text-[11px] font-medium ml-auto opacity-50 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded">⌘K</span>
+          <button type="button" onClick={() => setSearchOpen(true)} className="vault-header-search" aria-label="Search your vault">
+            <SearchIcon aria-hidden="true" />
+            <span>Search your vault</span>
+            <kbd>⌘K</kbd>
           </button>
 
-          <div className="apple-header-actions flex items-center gap-1 md:gap-2">
-            <button
-              onClick={() => setIsGlobalImportOpen(true)}
-              className="hidden md:flex items-center gap-2 h-[34px] px-3 rounded-[10px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
-            >
-              <Wand2Icon className="w-3.5 h-3.5 shrink-0" />
-              <span className="text-[13px] font-medium hidden lg:block">Magic Import</span>
+          <div className="vault-header-actions">
+            <button type="button" onClick={() => setIsGlobalImportOpen(true)} className="vault-header-import">
+              <Wand2Icon aria-hidden="true" /><span>Magic Import</span>
             </button>
-
-            <button onClick={() => setIsGlobalImportOpen(true)} className="md:hidden w-10 h-10 flex items-center justify-center rounded-full text-primary hover:bg-primary/10 active:scale-90 transition-all" aria-label="Magic Import">
-              <Wand2Icon className="w-[19px] h-[19px]" />
+            <button type="button" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} className="vault-header-icon vault-header-theme" aria-label="Toggle theme">
+              {resolvedTheme === "dark" ? <SunIcon /> : <MoonIcon />}
             </button>
-
-            <button onClick={() => setSearchOpen(true)} className="md:hidden w-10 h-10 flex items-center justify-center rounded-full text-muted-foreground hover:bg-black/5 dark:hover:bg-white/7 active:scale-90 transition-all" aria-label="Search">
-              <SearchIcon className="w-[19px] h-[19px]" />
+            <button type="button" onClick={() => handleNavigate("profile")} className="vault-header-profile" aria-label="Open profile">
+              <span className={activeTab === "profile" ? "is-active" : ""}>{avatarUrl ? <img src={avatarUrl} alt="" /> : avatarLetter}</span>
             </button>
-
-            <button
-              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              className="apple-theme-toggle hidden md:flex w-8 h-8 items-center justify-center rounded-[8px] hover:bg-black/5 dark:hover:bg-white/7 active:scale-90 transition-all text-muted-foreground"
-              aria-label="Toggle theme"
-            >
-            <AnimatePresence mode="wait" initial={false}>
-              {resolvedTheme === "dark" ? (
-                <motion.span
-                  key="sun"
-                  initial={{ rotate: -90, opacity: 0, scale: 0.7 }}
-                  animate={{ rotate: 0,   opacity: 1, scale: 1   }}
-                  exit={{   rotate: 90,   opacity: 0, scale: 0.7 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
-                  className="flex"
-                >
-                  <SunIcon className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="moon"
-                  initial={{ rotate: 90,  opacity: 0, scale: 0.7 }}
-                  animate={{ rotate: 0,   opacity: 1, scale: 1   }}
-                  exit={{   rotate: -90,  opacity: 0, scale: 0.7 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
-                  className="flex"
-                >
-                  <MoonIcon className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                </motion.span>
-              )}
-            </AnimatePresence>
-            </button>
-
-            <button onClick={() => handleNavigate("profile")} className="relative w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-full shrink-0 active:scale-90 transition-transform" aria-label="Profile">
-              <div className={`w-[30px] h-[30px] rounded-full overflow-hidden flex items-center justify-center text-[12px] font-bold bg-secondary text-muted-foreground ring-2 transition-all ${activeTab === "profile" ? "ring-primary" : "ring-transparent"}`}>
-                {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : avatarLetter}
-              </div>
-            </button>
+            <button type="button" onClick={() => setSearchOpen(true)} className="vault-header-icon vault-header-mobile-search" aria-label="Search"><SearchIcon /></button>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="vault-header-icon vault-header-more" aria-label="More actions"><MoreHorizontalIcon /></DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="vault-header-menu">
+                <DropdownMenuItem onClick={() => setIsGlobalImportOpen(true)}><Wand2Icon />Magic Import</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>{resolvedTheme === "dark" ? <SunIcon /> : <MoonIcon />}{resolvedTheme === "dark" ? "Light appearance" : "Dark appearance"}</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleNavigate("profile")}><UserCircleIcon />Profile</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -508,10 +465,11 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0,   scale: 1    }}
                 exit={{   opacity: 0, y: -6,   scale: 0.97 }}
                 transition={{ type: "spring", bounce: 0.15, duration: 0.3 }}
-                className="fixed top-[calc(env(safe-area-inset-top,0px)+58px)] sm:top-[64px] left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 sm:w-full sm:max-w-[540px]"
+                className="vault-command-palette"
+                aria-label="Search the vault"
               >
                 <div
-                  className="apple-sheet overflow-hidden"
+                  className="vault-command-surface"
                   style={{
                     background: "var(--card)",
                     border: "1px solid var(--border)",
@@ -672,9 +630,6 @@ export default function Home() {
         {/* ── Scrollable content — all tabs always mounted, hidden via display:none */}
         <div ref={contentScrollRef} className="ios-content-scroll flex-1 overflow-auto">
           <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 md:px-7 py-4 sm:py-5 pb-32 md:pb-8">
-            <h1 className="apple-large-title md:hidden mb-5">
-              {ALL_TABS_WITH_PROFILE.find(t => t.tab === activeTab)?.label ?? "Home"}
-            </h1>
             <div style={{ display: activeTab === "dashboard" ? undefined : "none" }}><Dashboard  {...sharedProps} /></div>
             <div style={{ display: activeTab === "passwords" ? undefined : "none" }}><PasswordVault {...sharedProps} /></div>
             <div style={{ display: activeTab === "documents" ? undefined : "none" }}><DocumentVault {...sharedProps} /></div>
