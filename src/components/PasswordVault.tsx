@@ -350,7 +350,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
   const dupeIds = useMemo(() => findDuplicateIds(items), [items]);
 
   return (
-    <div className="w-full relative pb-20">
+    <div className="apple-surface w-full relative pb-20">
       {/* Vault Health Banner */}
       {items.length >= 3 && (health.weak > 0 || health.reused > 0) && (
         <div className="mb-6 flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-5 py-4">

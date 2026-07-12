@@ -65,7 +65,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 exit={{    opacity: 0, y: -24,  scale: 0.94 }}
                 transition={{ type: "spring", bounce: 0.25, duration: 0.45 }}
                 onClick={() => dismiss(t.id)}
-                className="pointer-events-auto w-full flex items-center gap-3 px-4 py-3 rounded-[18px] cursor-pointer"
+                className="apple-material pointer-events-auto w-full flex items-center gap-3 px-4 py-3 rounded-[18px] cursor-pointer"
                 style={{
                   background: "rgba(30, 30, 30, 0.88)",
                   backdropFilter: "saturate(180%) blur(24px)",

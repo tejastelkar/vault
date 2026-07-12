@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -43,16 +43,61 @@ test("client crypto does not depend on Node Buffer", () => {
   assert.equal(read("src/lib/crypto.ts").includes("Buffer."), false);
 });
 
+test("payment cards use one proportional network-logo source of truth", () => {
+  const logos = read("src/components/CardLogos.tsx");
+  const wallet = read("src/components/WalletVault.tsx");
+  assert.match(logos, /export type CardNetwork/);
+  assert.match(logos, /export function getCardNetwork/);
+  assert.match(logos, /export function CardNetworkLogo/);
+  assert.match(logos, /object-contain/);
+  assert.match(logos, /mastercard/i);
+  assert.equal(wallet.includes("VisaLogo, RuPayLogo"), false);
+});
+
+test("Apple visual primitives include safe areas, focus, and reduced motion", () => {
+  const css = read("src/app/globals.css");
+  for (const token of ["--system-blue", "--grouped-bg", "--elevated-bg", "--separator", "--apple-shadow"]) {
+    assert.match(css, new RegExp(token));
+  }
+  for (const klass of ["apple-material", "apple-group", "apple-control", "apple-sheet", "apple-tabbar"]) {
+    assert.match(css, new RegExp(`\\.${klass}`));
+  }
+  assert.match(css, /env\(safe-area-inset-bottom\)/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /min-height:\s*44px/);
+});
+
 test("mobile shell keeps iOS-style safe areas and native tab treatment", () => {
   const page = read("src/app/page.tsx");
   const css = read("src/app/globals.css");
 
   assert.match(page, /ios-app-shell/);
   assert.match(page, /ios-mobile-header/);
-  assert.match(page, /ios-mobile-tabbar/);
-  assert.match(page, /ios-mobile-tab-indicator/);
+  assert.match(page, /apple-tabbar/);
+  assert.match(page, /layoutId="mobile-bg"/);
   assert.match(page, /max-w-4xl mx-auto w-full px-4 sm:px-6 md:px-7/);
   assert.match(css, /height:\s*100dvh/);
   assert.match(css, /--bottom-bar-height:\s*82px/);
   assert.match(css, /@media \(max-width:\s*767px\)/);
+});
+
+test("responsive shell uses the shared Apple ecosystem chrome", () => {
+  const page = read("src/app/page.tsx");
+  for (const klass of ["apple-app", "apple-sidebar", "apple-toolbar", "apple-large-title", "apple-tabbar"]) {
+    assert.match(page, new RegExp(klass));
+  }
+  assert.match(page, /aria-label="Primary navigation"/);
+});
+
+test("wallet presentation is isolated in an accessible PaymentCard", () => {
+  assert.equal(existsSync(new URL("../src/components/PaymentCard.tsx", import.meta.url)), true);
+  const card = read("src/components/PaymentCard.tsx");
+  const wallet = read("src/components/WalletVault.tsx");
+  assert.match(card, /export interface PaymentCardProps/);
+  assert.match(card, /export function PaymentCard/);
+  assert.match(card, /CardNetworkLogo/);
+  assert.match(card, /aria-expanded/);
+  assert.match(card, /tabular-nums/);
+  assert.match(wallet, /<PaymentCard/);
 });

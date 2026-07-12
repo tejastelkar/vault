@@ -306,10 +306,10 @@ export default function Home() {
   const displayName = (sessionUser.user_metadata?.full_name as string | undefined) ?? sessionUser.email?.split("@")[0] ?? "";
 
   return (
-    <div className="ios-app-shell flex h-screen w-full bg-background overflow-hidden">
+    <div className="ios-app-shell apple-app flex h-screen w-full overflow-hidden">
 
       {/* ── Sidebar ─────────────────────────────────────────── */}
-      <aside className="w-60 hidden md:flex flex-col shrink-0 sidebar-vibrancy border-r"
+      <aside className="apple-sidebar w-60 hidden md:flex flex-col shrink-0 sidebar-vibrancy border-r"
         style={{ borderColor: "var(--sidebar-border)" }}>
 
         {/* App identity */}
@@ -395,7 +395,7 @@ export default function Home() {
 
         {/* -- Header -- */}
         <header
-          className="ios-mobile-header flex items-center gap-2 px-4 md:px-6 shrink-0 border-b sidebar-vibrancy"
+          className="ios-mobile-header apple-toolbar flex items-center gap-2 px-4 md:px-6 shrink-0 sidebar-vibrancy"
           style={{ borderColor: "var(--border)", minHeight: "52px", height: "52px" }}
         >
           {/* Desktop: current section title */}
@@ -534,7 +534,7 @@ export default function Home() {
                 className="fixed top-[calc(env(safe-area-inset-top,0px)+58px)] sm:top-[64px] left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 sm:w-full sm:max-w-[540px]"
               >
                 <div
-                  className="rounded-2xl overflow-hidden"
+                  className="apple-sheet overflow-hidden"
                   style={{
                     background: "var(--card)",
                     border: "1px solid var(--border)",
@@ -695,6 +695,9 @@ export default function Home() {
         {/* ── Scrollable content — all tabs always mounted, hidden via display:none */}
         <div className="ios-content-scroll flex-1 overflow-auto">
           <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 md:px-7 py-4 sm:py-5 pb-32 md:pb-8">
+            <h1 className="apple-large-title md:hidden mb-5">
+              {ALL_TABS_WITH_PROFILE.find(t => t.tab === activeTab)?.label ?? "Home"}
+            </h1>
             <div style={{ display: activeTab === "dashboard" ? undefined : "none" }}><Dashboard  {...sharedProps} /></div>
             <div style={{ display: activeTab === "passwords" ? undefined : "none" }}><PasswordVault {...sharedProps} /></div>
             <div style={{ display: activeTab === "documents" ? undefined : "none" }}><DocumentVault {...sharedProps} /></div>
@@ -709,14 +712,15 @@ export default function Home() {
 
       {/* ── Mobile bottom tab bar ────────────────────────── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t sidebar-vibrancy bg-background/80 backdrop-blur-xl"
+        className="apple-tabbar md:hidden fixed bottom-0 left-0 right-0 z-40 sidebar-vibrancy bg-background/80 backdrop-blur-xl"
         style={{ borderColor: "var(--border)" }}
+        aria-label="Primary navigation"
       >
         <div
           className="flex items-end justify-around px-2 pt-2"
           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom, 12px))" }}
         >
-          {NAV_SECTIONS.flatMap(s => s.items).map(({ tab, icon: Icon, label }) => {
+          {NAV_SECTIONS.flatMap(s => s.items).filter(item => item.tab !== "banks").map(({ tab, icon: Icon, label }) => {
             const isActive = activeTab === tab;
             return (
               <button

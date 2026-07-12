@@ -322,10 +322,10 @@ export function Auth({
   }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-background px-4 sm:px-0 font-sans relative">
+    <div className="apple-app apple-surface flex h-screen w-full items-center justify-center px-4 sm:px-0 font-sans relative">
       {themeToggleButton}
       <motion.div 
-        className="w-full max-w-sm"
+        className="apple-material w-full max-w-sm rounded-[28px] p-5 sm:p-6"
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}

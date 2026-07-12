@@ -180,9 +180,9 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-background px-4">
+    <div className="apple-app apple-surface flex h-screen w-full items-center justify-center px-4">
       <motion.div
-        className="w-full max-w-xs flex flex-col items-center gap-8"
+        className="apple-material w-full max-w-xs flex flex-col items-center gap-8 rounded-[28px] p-7"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}

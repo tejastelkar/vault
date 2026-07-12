@@ -196,7 +196,7 @@ export function Dashboard({ masterPassword }: DashboardProps) {
   }
 
   return (
-    <div className="w-full space-y-5 sm:space-y-7 pb-10">
+    <div className="apple-surface w-full space-y-5 sm:space-y-7 pb-10">
 
       {/* Greeting — clean, typographic, no background effects */}
       <div>

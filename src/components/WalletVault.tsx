@@ -20,7 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BuildingIcon, TrashIcon, CopyIcon, CameraIcon, Loader2Icon, MoreHorizontalIcon, CheckSquareIcon, SquareIcon } from "lucide-react";
-import { VisaLogo, RuPayLogo } from "@/components/CardLogos";
+import { CardNetworkLogo, getCardNetwork } from "@/components/CardLogos";
+import { PaymentCard } from "@/components/PaymentCard";
 interface SecureWallet {
   id: string;
   title: string;
@@ -332,84 +333,12 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     return "from-slate-700 to-slate-900 shadow-slate-900/40";
   };
 
-  // Inline SVG logos — no external CDN dependency, always render correctly
-  const getCardNetwork = (number: string): { name: string; logo: React.ReactNode } | null => {
-    const n = number.replace(/\s/g, '');
-    if (!n) return null;
-    const mc2 = parseInt(n.substring(0,2)), mc4 = parseInt(n.substring(0,4));
-
-    // ── Visa: classic bold italic wordmark ───────────────────────────────
-    if (n.startsWith("4")) return {
-      name: "Visa",
-      logo: (
-        <VisaLogo className="h-6 w-auto drop-shadow-md" />
-      )
-    };
-
-    // ── Mastercard: two circles only, NO text ────────────────────────────
-    if ((mc4 >= 2221 && mc4 <= 2720) || (mc2 >= 51 && mc2 <= 55)) return {
-      name: "Mastercard",
-      logo: (
-        <svg viewBox="0 0 46 30" xmlns="http://www.w3.org/2000/svg" className="h-8 w-auto drop-shadow-md">
-          <circle cx="16" cy="15" r="14" fill="#EB001B"/>
-          <circle cx="30" cy="15" r="14" fill="#F79E1B"/>
-          <path d="M23,3.2 a14,14,0,0,1,0,23.6 a14,14,0,0,1,0,-23.6z" fill="#FF5F00"/>
-        </svg>
-      )
-    };
-
-    // ── Amex ─────────────────────────────────────────────────────────────
-    if (n.startsWith("34") || n.startsWith("37")) return {
-      name: "Amex",
-      logo: (
-        <svg viewBox="0 0 84 24" xmlns="http://www.w3.org/2000/svg" className="h-6 w-auto">
-          <text x="1" y="19" fontFamily="'Arial Black',Arial,sans-serif" fontSize="18" fontWeight="900" fill="white" letterSpacing="3">AMEX</text>
-        </svg>
-      )
-    };
-
-    // ── RuPay: tricolor bar + Ru (white) + Pay (orange) ──────────────────
-    // 652x checked BEFORE generic 65 (Discover)
-    if (n.startsWith("60") || n.startsWith("652") || n.startsWith("6069") || n.startsWith("6070")) return {
-      name: "RuPay",
-      logo: (
-        <RuPayLogo className="h-6 w-auto drop-shadow-md" />
-      )
-    };
-
-    // ── Discover ─────────────────────────────────────────────────────────
-    if (n.startsWith("6011") || n.startsWith("65") || (parseInt(n.substring(0,6)) >= 622126 && parseInt(n.substring(0,6)) <= 622925)) return {
-      name: "Discover",
-      logo: (
-        <svg viewBox="0 0 110 28" xmlns="http://www.w3.org/2000/svg" className="h-5 w-auto">
-          <text x="0" y="22" fontFamily="Arial,sans-serif" fontSize="17" fontWeight="700" fill="white" letterSpacing="0.5">DISCOVER</text>
-          <circle cx="101" cy="13" r="11" fill="#F76F20"/>
-        </svg>
-      )
-    };
-
-    // ── Maestro: red + blue circles ──────────────────────────────────────
-    if (n.startsWith("50") || (mc2 >= 56 && mc2 <= 69)) return {
-      name: "Maestro",
-      logo: (
-        <svg viewBox="0 0 46 30" xmlns="http://www.w3.org/2000/svg" className="h-8 w-auto">
-          <circle cx="16" cy="15" r="14" fill="#EB001B" opacity="0.92"/>
-          <circle cx="30" cy="15" r="14" fill="#0099DF" opacity="0.92"/>
-          <path d="M23,3.2 a14,14,0,0,1,0,23.6 a14,14,0,0,1,0,-23.6z" fill="#7673C0"/>
-        </svg>
-      )
-    };
-
-    return null;
-  };
-
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
 
   return (
-    <div className="w-full relative" style={{ perspective: "1500px" }}>
+    <div className="apple-surface w-full relative" style={{ perspective: "1500px" }}>
       <div className="flex items-center justify-between gap-3 mb-5 sm:mb-8">
         <h2 className="text-[28px] sm:text-[32px] font-bold tracking-tight">Digital Wallet</h2>
         
@@ -625,6 +554,25 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
                 transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                 key={item.id}
               >
+                <PaymentCard
+                  id={item.id}
+                  title={item.title}
+                  number={item.payload.number || ""}
+                  name={item.payload.name}
+                  expiry={item.payload.expiry}
+                  cvv={item.payload.cvv}
+                  subtype={item.payload.subtype}
+                  colorClass={getCardColor(item.payload.number || "")}
+                  selected={selectedIds.has(item.id)}
+                  selectionMode={isSelectionMode}
+                  expanded={expandedCardId === item.id}
+                  stackIndex={cards.indexOf(item)}
+                  onSelect={(event) => toggleSelection(item.id, event)}
+                  onToggle={() => setExpandedCardId(expandedCardId === item.id ? null : item.id)}
+                  onDelete={() => handleDelete(item.id)}
+                  onCopy={copyToClipboard}
+                />
+                {false && (
                 <TiltCard className="w-full group cursor-default">
                   <div
                     className={`w-full aspect-[1.586/1] rounded-[24px] bg-gradient-to-br ${getCardColor(item.payload.number || "")} p-6 sm:p-8 flex flex-col justify-between text-white shadow-2xl relative overflow-hidden ${isSelectionMode ? 'cursor-pointer' : ''}`}
@@ -644,8 +592,8 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
                       </div>
                       <div className="flex items-center justify-end min-w-[60px] h-9 mr-8">
                         {(() => {
-                          const net = getCardNetwork(item.payload.number || "");
-                          return net ? net.logo : <div className="w-12 h-8 bg-white/20 rounded-md backdrop-blur-sm" />;
+                          const network = getCardNetwork(item.payload.number || "");
+                          return <CardNetworkLogo network={network} />;
                         })()}
                       </div>
                     </div>
@@ -684,13 +632,14 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
                     </button>
                   </div>
                 </TiltCard>
+                )}
 
                 {/* Expandable PIN / UPI / Extra Details Panel */}
                 {(item.payload.pin || item.payload.upi_pin || item.payload.extra_details) && (
                   <div className="mt-2">
                     <button
                       onClick={() => setExpandedCardId(expandedCardId === item.id ? null : item.id)}
-                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-secondary/60 hover:bg-secondary transition-colors text-[13px] font-medium text-muted-foreground"
+                      className="hidden w-full items-center justify-between px-4 py-2.5 rounded-xl bg-secondary/60 hover:bg-secondary transition-colors text-[13px] font-medium text-muted-foreground"
                     >
                       <span>Card Details &amp; PINs</span>
                       <svg

@@ -136,13 +136,13 @@ export function Profile({ onLogout }: ProfileProps) {
   if (loading) return null;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="apple-surface max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="mb-8">
         <h2 className="text-3xl font-semibold tracking-tight text-foreground mb-2">Profile</h2>
         <p className="text-muted-foreground text-[15px]">Manage your personal information and preferences.</p>
       </div>
 
-      <div className="bg-card rounded-3xl p-8 border border-border shadow-sm">
+      <div className="apple-group bg-card rounded-3xl p-6 sm:p-8 border border-border shadow-sm">
         <div className="flex flex-col md:flex-row gap-8 items-start">
           
           {/* Avatar Section */}

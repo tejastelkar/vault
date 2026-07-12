@@ -259,7 +259,7 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
   };
 
   return (
-    <div className="w-full">
+    <div className="apple-surface w-full">
       <div className="flex items-center justify-between gap-3 mb-5 sm:mb-8">
         <div className="flex items-center gap-3">
           <h2 className="text-[28px] sm:text-[32px] font-bold tracking-tight">Documents</h2>
