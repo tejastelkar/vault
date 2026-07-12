@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheckIcon, XCircleIcon } from "lucide-react";
+import { ShieldCheckIcon, XCircleIcon, FingerprintIcon } from "lucide-react";
+import { hasBiometricsEnabled, unlockWithBiometrics } from "@/lib/biometrics";
 
 const MAX_ATTEMPTS = 3;
 const PIN_STORAGE_KEY = "vault_pin_hash";
@@ -99,6 +100,12 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
   const [checking, setChecking] = useState(false);
   const [shake, setShake] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const [hasBio, setHasBio] = useState(false);
+
+  useEffect(() => {
+    setHasBio(hasBiometricsEnabled());
+  }, []);
 
   // Read attempts from localStorage so they persist across refreshes
   useEffect(() => {
@@ -256,14 +263,35 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
           })}
         </div>
 
-        {/* Fallback link */}
-        <button
-          type="button"
-          onClick={onFallback}
-          className="text-[13px] text-muted-foreground hover:text-foreground transition-colors font-medium"
-        >
-          Use master password instead
-        </button>
+        {/* Fallback links */}
+        <div className="flex flex-col items-center gap-4">
+          {hasBio && (
+            <button
+              type="button"
+              onClick={async () => {
+                setChecking(true);
+                try {
+                  const masterKey = await unlockWithBiometrics();
+                  onUnlock(masterKey);
+                } catch (err: any) {
+                  setError(err.message);
+                  setChecking(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted text-foreground text-[14px] font-medium hover:bg-muted/80 transition-colors"
+            >
+              <FingerprintIcon className="w-4 h-4" />
+              Use Face ID / Touch ID
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onFallback}
+            className="text-[13px] text-muted-foreground hover:text-foreground transition-colors font-medium"
+          >
+            Use master password instead
+          </button>
+        </div>
       </motion.div>
     </div>
   );

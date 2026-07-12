@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Loader2Icon, ShieldCheckIcon } from "lucide-react";
+import { Loader2Icon, ShieldCheckIcon, FingerprintIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { savePinForMaster, hasPinLock } from "@/components/PinLock";
+import { isBiometricsSupported, hasBiometricsEnabled, enableBiometrics, unlockWithBiometrics } from "@/lib/biometrics";
 
 export function Auth({ 
   onLogin,
@@ -30,6 +31,14 @@ export function Auth({
   const [pinConfirmDigits, setPinConfirmDigits] = useState<string[]>([]);
   const [pinError, setPinError] = useState<string | null>(null);
   const [savingPin, setSavingPin] = useState(false);
+
+  const [isBioSupported, setIsBioSupported] = useState(false);
+  const [hasBio, setHasBio] = useState(false);
+
+  useEffect(() => {
+    setIsBioSupported(isBiometricsSupported());
+    setHasBio(hasBiometricsEnabled());
+  }, []);
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -155,9 +164,27 @@ export function Auth({
               </p>
             </div>
             <div className="flex flex-col gap-3 w-full">
+              {isBioSupported && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await enableBiometrics(pendingMaster!);
+                      onLogin(pendingMaster!);
+                    } catch (err: any) {
+                      setPinError(err.message);
+                    }
+                  }}
+                  className="w-full py-3 rounded-xl bg-foreground text-background font-semibold text-[16px] hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                >
+                  <FingerprintIcon className="w-5 h-5" />
+                  Set up Face ID / Touch ID
+                </button>
+              )}
               <button
                 onClick={() => setPinSetupPhase("enter")}
-                className="w-full py-3 rounded-xl bg-foreground text-background font-semibold text-[16px] hover:opacity-90 transition-opacity"
+                className={`w-full py-3 rounded-xl font-semibold text-[16px] transition-colors ${
+                  isBioSupported ? "bg-muted text-foreground hover:bg-muted/80" : "bg-foreground text-background hover:opacity-90"
+                }`}
               >
                 Set up PIN
               </button>
@@ -167,6 +194,9 @@ export function Auth({
               >
                 Skip for now
               </button>
+              {pinError && (
+                <p className="text-destructive text-[13px] font-medium mt-2">{pinError}</p>
+              )}
             </div>
           </motion.div>
         </div>
@@ -298,6 +328,32 @@ export function Auth({
             >
               Create Account
             </button>
+          </div>
+        )}
+
+        {initialSessionActive && hasBio && (
+          <div className="mb-6">
+            <button
+              onClick={async () => {
+                try {
+                  const masterKey = await unlockWithBiometrics();
+                  onLogin(masterKey);
+                } catch (err: any) {
+                  setError(err.message);
+                }
+              }}
+              type="button"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-foreground text-background font-medium hover:opacity-90 transition-opacity"
+            >
+              <FingerprintIcon className="w-5 h-5" />
+              Sign in with Face ID / Touch ID
+            </button>
+            
+            <div className="flex items-center gap-4 my-6">
+              <div className="h-px bg-border flex-1" />
+              <span className="text-[12px] text-muted-foreground uppercase tracking-widest font-semibold">Or Use Master Key</span>
+              <div className="h-px bg-border flex-1" />
+            </div>
           </div>
         )}
 
