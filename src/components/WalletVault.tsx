@@ -342,7 +342,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     if (n.startsWith("4")) return {
       name: "Visa",
       logo: (
-        <VisaLogo className="h-6 w-auto drop-shadow-md" />
+        <VisaLogo className="h-8 w-auto drop-shadow-md" />
       )
     };
 
@@ -373,7 +373,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     if (n.startsWith("60") || n.startsWith("652") || n.startsWith("6069") || n.startsWith("6070")) return {
       name: "RuPay",
       logo: (
-        <RuPayLogo className="h-6 w-auto drop-shadow-md" />
+        <RuPayLogo className="h-8 w-auto drop-shadow-md" />
       )
     };
 
