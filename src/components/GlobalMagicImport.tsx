@@ -264,8 +264,7 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
           <XIcon className="w-4 h-4" strokeWidth={2.5} />
         </button>
 
-        <div className="magic-import-scroll relative z-10 p-8">
-          <DialogHeader className="mb-8 space-y-3 flex flex-col items-center text-center">
+        <DialogHeader className="magic-import-header relative z-10 mb-8 space-y-3 flex flex-col items-center text-center px-8 pt-8">
             <div className="relative flex items-center justify-center mb-4">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-orange-500 blur-xl opacity-30 rounded-full" />
               <div className="relative w-16 h-16 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm rounded-full flex items-center justify-center">
@@ -286,8 +285,9 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
               {phase === "saving" && `Encrypting and saving selected items…`}
               {phase === "done" && `${uploadedCount} saved · ${excluded.size} excluded · ${failed} failed`}
             </p>
-          </DialogHeader>
+        </DialogHeader>
 
+        <div className="magic-import-scroll relative z-10 px-8 pb-8">
           <AnimatePresence mode="wait">
 
             {/* Uploading progress view */}
