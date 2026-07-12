@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckSquareIcon, CopyIcon, SquareIcon } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { CardNetworkLogo, getCardNetwork } from "@/components/CardLogos";
 
 export interface PaymentCardProps {
@@ -37,17 +37,18 @@ export function PaymentCard({
   onToggleChecked,
   onCopyNumber,
 }: PaymentCardProps) {
+  const shouldReduceMotion = useReducedMotion();
   const network = getCardNetwork(number);
   const formattedNumber = number.replace(/(\d{4})/g, "$1 ").trim();
 
   return (
     <motion.article
       id={`item-${id}`}
-      layout
+      layout={!shouldReduceMotion}
       data-selected={selected || undefined}
-      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 16, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
+      transition={shouldReduceMotion ? { duration: 0 } : {
         type: "spring",
         stiffness: 300,
         damping: 28,
