@@ -133,3 +133,31 @@ test("Wallet stack and Settings profile expose native structure", () => {
   assert.match(css, /--apple-spring/);
   for (const label of ["Account", "Security", "Appearance", "Data", "Danger Zone"]) assert.match(profile, new RegExp(label));
 });
+
+test("global importer has paste review saving and truthful result stages", () => {
+  const importer = read("src/components/GlobalMagicImport.tsx");
+  assert.match(importer, /type ImportPhase/);
+  for (const phase of ["paste", "review", "saving", "done"]) assert.match(importer, new RegExp(`"${phase}"`));
+  assert.match(importer, /Review Import/);
+  assert.match(importer, /Save.*Items/);
+  assert.match(importer, /selected/);
+  assert.match(importer, /excluded/);
+  assert.match(importer, /failed/);
+});
+
+test("Digital Wallet uses one filterable card stack", () => {
+  const wallet = read("src/components/WalletVault.tsx");
+  assert.match(wallet, /type WalletFilter/);
+  assert.match(wallet, /walletFilter/);
+  assert.match(wallet, /"All".*"Credit".*"Debit"/s);
+  assert.equal((wallet.match(/apple-wallet-stack/g) || []).length, 1);
+});
+
+test("Bank Vault uses compact grouped institution rows", () => {
+  const bank = read("src/components/BankVault.tsx");
+  assert.match(bank, /apple-bank-list/);
+  assert.match(bank, /apple-bank-row/);
+  assert.match(bank, /Account suffix/);
+  assert.match(bank, /IFSC \/ Routing/);
+  assert.match(bank, /ChevronRightIcon/);
+});

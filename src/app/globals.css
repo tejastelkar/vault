@@ -93,6 +93,10 @@
 .apple-selection-toolbar { position: fixed; z-index: 60; left: 12px; right: 12px; bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px) + 10px); min-height: 52px; border-radius: 18px; padding: 6px 10px; align-items: center; justify-content: space-between; }
 .apple-selection-toolbar button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
 .apple-wallet-stack { isolation: isolate; }
+.apple-bank-list { max-width: 760px; margin-inline: auto; }
+.apple-bank-list > * + * { border-top: .5px solid var(--separator); }
+.apple-bank-row { cursor: pointer; transition: background-color 140ms ease; }
+.apple-bank-row:active { background: color-mix(in srgb, var(--elevated-bg) 90%, var(--system-blue)) !important; }
 @media (max-width: 1023px) {
   .apple-wallet-card-stacked { margin-bottom: -42%; transition: transform var(--apple-spring), margin var(--apple-spring); }
   .apple-wallet-card-stacked:hover { transform: translateY(-4px); }

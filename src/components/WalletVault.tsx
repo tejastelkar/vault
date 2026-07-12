@@ -57,6 +57,7 @@ type BankAccountPayload = {
 };
 
 type WalletPayload = CreditCardPayload & BankAccountPayload;
+type WalletFilter = "all" | "credit" | "debit";
 
 type ScanResponse = {
   data?: {
@@ -135,6 +136,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
 
   // Expanded card detail panel state
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [walletFilter, setWalletFilter] = useState<WalletFilter>("all");
 
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -538,9 +540,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
           return "other";
         };
 
-        const creditCards = items.filter(i => inferSubtype(i) === "credit");
-        const debitCards  = items.filter(i => inferSubtype(i) === "debit");
-        const otherCards  = items.filter(i => inferSubtype(i) === "other");
+        const filteredCards = items.filter(item => walletFilter === "all" || inferSubtype(item) === walletFilter);
 
         const CardGrid = ({ cards }: { cards: DecryptedWallet[] }) => (
           <motion.div layout className="apple-wallet-stack grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-6">
@@ -711,37 +711,11 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
         );
 
         return (
-          <div className="space-y-10">
-            {creditCards.length > 0 && (
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Credit Cards</span>
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-[11px] text-muted-foreground">{creditCards.length}</span>
-                </div>
-                <CardGrid cards={creditCards} />
-              </div>
-            )}
-            {debitCards.length > 0 && (
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Debit Cards</span>
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-[11px] text-muted-foreground">{debitCards.length}</span>
-                </div>
-                <CardGrid cards={debitCards} />
-              </div>
-            )}
-            {otherCards.length > 0 && (
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Cards</span>
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-[11px] text-muted-foreground">{otherCards.length}</span>
-                </div>
-                <CardGrid cards={otherCards} />
-              </div>
-            )}
+          <div className="space-y-5">
+            <div className="mx-auto flex w-full max-w-sm rounded-xl bg-secondary/70 p-1" role="tablist" aria-label="Card type">
+              {(["all", "credit", "debit"] as WalletFilter[]).map(filter => <button key={filter} onClick={() => setWalletFilter(filter)} className={`apple-pressed min-h-9 flex-1 rounded-[10px] text-[13px] font-semibold capitalize ${walletFilter === filter ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>{filter === "all" ? "All" : filter === "credit" ? "Credit" : "Debit"}</button>)}
+            </div>
+            <CardGrid cards={filteredCards} />
           </div>
         );
       })() : null}

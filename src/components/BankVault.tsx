@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { BuildingIcon, TrashIcon, CopyIcon, CameraIcon, Loader2Icon, MoreHorizontalIcon, CheckSquareIcon, SquareIcon } from "lucide-react";
+import { BuildingIcon, TrashIcon, CopyIcon, CameraIcon, Loader2Icon, MoreHorizontalIcon, CheckSquareIcon, SquareIcon, ChevronRightIcon } from "lucide-react";
 
 interface SecureWallet {
   id: string;
@@ -131,6 +131,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
   // Bulk State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
 
   useEffect(() => {
     if (focusedItemId) {
@@ -444,7 +445,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
         ) : items.length === 0 ? (
           <EmptyState type="bank" onCta={() => setIsAddOpen(true)} />
         ) : (
-          <motion.div layout className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <motion.div layout className="apple-bank-list apple-grouped-list">
             <AnimatePresence>
             {items.map((item) => (
               <motion.div 
@@ -457,9 +458,9 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
                 key={item.id} 
               >
                   <div 
-                    className={`w-full bg-card border ${isSelectionMode && selectedIds.has(item.id) ? 'border-primary ring-1 ring-primary' : 'border-border'} rounded-[24px] p-6 sm:p-8 flex flex-col justify-between shadow-sm relative overflow-hidden group ${isSelectionMode ? 'cursor-pointer' : ''}`}
+                    className={`apple-bank-row apple-grouped-row w-full relative overflow-hidden group ${isSelectionMode && selectedIds.has(item.id) ? 'ring-2 ring-primary/30' : ''}`}
                     onClick={(e) => {
-                      if (isSelectionMode) toggleSelection(item.id, e);
+                      if (isSelectionMode) toggleSelection(item.id, e); else setExpandedBankId(expandedBankId === item.id ? null : item.id);
                     }}
                   >
                     {isSelectionMode && (
@@ -470,16 +471,17 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
                       </div>
                     )}
 
-                    <div className={`flex justify-between items-start mb-6 ${isSelectionMode ? 'ml-8' : ''}`}>
+                    <div className={`flex justify-between items-center ${isSelectionMode ? 'ml-8' : ''}`}>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <BuildingIcon strokeWidth={2} className="w-5 h-5 text-primary" />
                         </div>
-                        <span className="text-[18px] font-semibold tracking-tight text-foreground">{item.title}</span>
+                        <div><span className="type-row-title block">{item.title}</span><span className="type-metadata text-muted-foreground">Account suffix ••••{(item.payload.account || "").slice(-4)} · IFSC / Routing {item.payload.routing || "—"}</span></div>
                       </div>
+                      <ChevronRightIcon className={`h-5 w-5 text-muted-foreground transition-transform ${expandedBankId === item.id ? "rotate-90" : ""}`} />
                     </div>
 
-                    <div className="space-y-4 relative z-10 mt-6">
+                    <div className={`${expandedBankId === item.id ? "block" : "hidden"} space-y-4 relative z-10 mt-5 border-t border-border/60 pt-4`}>
                       <div className="flex flex-col">
                         <span className="text-[12px] text-muted-foreground uppercase tracking-widest font-medium mb-1">IFSC / Routing Code</span>
                         <div 

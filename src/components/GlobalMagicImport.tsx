@@ -15,29 +15,31 @@ interface GlobalMagicImportProps {
   onSuccess: () => void;
 }
 
-type Phase = "idle" | "parsing" | "uploading" | "done";
+type ImportPhase = "paste" | "parsing" | "review" | "saving" | "done";
 
 export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSuccess }: GlobalMagicImportProps) {
   const [inputText, setInputText] = useState("");
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<ImportPhase>("paste");
+  const [excluded, setExcluded] = useState<Set<keyof GlobalImportResult>>(new Set());
+  const [failed, setFailed] = useState(0);
   const [importStats, setImportStats] = useState<GlobalImportResult | null>(null);
   const [uploadedCount, setUploadedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [currentLabel, setCurrentLabel] = useState("");
 
   const handleClose = () => {
-    if (phase === "uploading" || phase === "parsing") return; // block only while actively working
+    if (phase === "saving" || phase === "parsing") return;
     onOpenChange(false);
     setTimeout(() => {
       setImportStats(null);
       setInputText("");
-      setPhase("idle");
+      setPhase("paste");
       setUploadedCount(0);
       setTotalCount(0);
     }, 300);
   };
 
-  const handleProcess = async () => {
+  const handleReview = async () => {
     if (!inputText.trim() || !masterPassword) return;
     setPhase("parsing");
     setImportStats(null);
@@ -56,7 +58,24 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
 
       setTotalCount(total);
       setUploadedCount(0);
-      setPhase("uploading");
+      setPhase("review");
+    } catch (err) {
+      console.error(err);
+      setPhase("paste");
+    }
+  };
+
+  const handleProcess = async () => {
+    if (!importStats || !masterPassword) return;
+    const parsedData: GlobalImportResult = {
+      passwords: excluded.has("passwords") ? [] : importStats.passwords,
+      notes: excluded.has("notes") ? [] : importStats.notes,
+      bank_accounts: excluded.has("bank_accounts") ? [] : importStats.bank_accounts,
+      credit_cards: excluded.has("credit_cards") ? [] : importStats.credit_cards,
+    };
+    setPhase("saving");
+    setFailed(0);
+    try {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
@@ -214,15 +233,13 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
 
       setPhase("done");
       setInputText("");
-      setTimeout(() => {
-        onSuccess();
-        handleClose();
-      }, 2200);
+      onSuccess();
 
     } catch (err) {
       console.error(err);
       alert("Failed to parse and import data.");
-      setPhase("idle");
+      setFailed((count) => count + 1);
+      setPhase("review");
     }
   };
 
@@ -231,7 +248,8 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
     : 0;
 
   const progressPercent = totalCount > 0 ? Math.round((uploadedCount / totalCount) * 100) : 0;
-  const isWorking = phase === "parsing" || phase === "uploading";
+  const isWorking = phase === "parsing" || phase === "saving";
+  const selected = importStats ? (["passwords", "notes", "bank_accounts", "credit_cards"] as const).reduce((sum, key) => sum + (excluded.has(key) ? 0 : importStats[key].length), 0) : 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
@@ -259,17 +277,18 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
               {phase === "done" ? "Import Complete" : "Magic Import"}
             </DialogTitle>
             <p className="text-[15px] text-muted-foreground leading-relaxed max-w-[360px] mx-auto">
-              {phase === "idle" && "Paste your unstructured data. Our AI will securely organize and encrypt it into your vault."}
+              {phase === "paste" && "Paste anything. Review every detected item before it is encrypted and saved."}
               {phase === "parsing" && "AI is reading and categorizing your data…"}
-              {phase === "uploading" && `Encrypting and saving to your vault…`}
-              {phase === "done" && `All ${totalImported} items have been securely saved.`}
+              {phase === "review" && `${selected} items selected for your vault.`}
+              {phase === "saving" && `Encrypting and saving selected items…`}
+              {phase === "done" && `${uploadedCount} saved · ${excluded.size} excluded · ${failed} failed`}
             </p>
           </DialogHeader>
 
           <AnimatePresence mode="wait">
 
             {/* Uploading progress view */}
-            {(phase === "uploading" || phase === "done") && importStats && (
+            {(phase === "saving" || phase === "done") && importStats && (
               <motion.div
                 key="progress"
                 initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -278,7 +297,7 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
                 transition={{ type: "spring", bounce: 0, duration: 0.4 }}
               >
                 {/* Progress bar */}
-                {phase === "uploading" && (
+                {phase === "saving" && (
                   <div className="mb-5">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[13px] font-medium text-muted-foreground truncate max-w-[60%]">
@@ -318,6 +337,7 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
                     ))}
                   </div>
                 </div>
+                {phase === "done" && <Button onClick={handleClose} className="apple-button-primary mt-5 w-full">Done</Button>}
               </motion.div>
             )}
 
@@ -335,8 +355,25 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
               </motion.div>
             )}
 
+            {phase === "review" && importStats && (
+              <motion.div key="review" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+                <div className="apple-grouped-list">
+                  {([
+                    ["passwords", "Passwords"], ["notes", "Notes"], ["credit_cards", "Cards"], ["bank_accounts", "Bank Accounts"],
+                  ] as const).map(([key, label]) => (
+                    <label key={key} className="apple-grouped-row flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={!excluded.has(key)} onChange={() => setExcluded(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; })} className="h-5 w-5 accent-primary" />
+                      <span className="type-row-title flex-1">{label}</span><span className="type-metadata text-muted-foreground tabular-nums">{importStats[key].length}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="type-metadata text-muted-foreground">Uncheck a group to exclude it. Parsed titles and identifying fields remain visible for review before saving.</p>
+                <div className="flex justify-between gap-3"><Button variant="ghost" onClick={() => setPhase("paste")}>Back</Button><Button onClick={handleProcess} disabled={selected === 0} className="apple-button-primary px-6">Save {selected} Items</Button></div>
+              </motion.div>
+            )}
+
             {/* Input view */}
-            {phase === "idle" && (
+            {phase === "paste" && (
               <motion.div
                 key="input"
                 initial={{ opacity: 0, y: 10 }}
@@ -359,11 +396,11 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
                     Cancel
                   </Button>
                   <Button
-                    onClick={handleProcess}
+                    onClick={handleReview}
                     disabled={!inputText.trim()}
                     className="font-medium h-12 px-7 rounded-xl bg-[#007aff] hover:bg-[#006ee6] text-white shadow-sm transition-all active:scale-[0.98] text-[15px]"
                   >
-                    Import Data
+                    Review Import
                   </Button>
                 </div>
               </motion.div>
