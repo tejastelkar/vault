@@ -28,3 +28,11 @@ export function PremiumLockIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function AppleLockIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path fillRule="evenodd" clipRule="evenodd" d="M7 9V7.5C7 4.73858 9.23858 2.5 12 2.5C14.7614 2.5 17 4.73858 17 7.5V9H17.5C18.8807 9 20 10.1193 20 11.5V19.5C20 20.8807 18.8807 22 17.5 22H6.5C5.11929 22 4 20.8807 4 19.5V11.5C4 10.1193 5.11929 9 6.5 9H7ZM9 9V7.5C9 5.84315 10.3431 4.5 12 4.5C13.6569 4.5 15 5.84315 15 7.5V9H9ZM12 17C12.8284 17 13.5 16.3284 13.5 15.5C13.5 14.6716 12.8284 14 12 14C11.1716 14 10.5 14.6716 10.5 15.5C10.5 16.3284 11.1716 17 12 17Z" />
+    </svg>
+  );
+}

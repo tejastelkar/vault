@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Loader2Icon } from "lucide-react";
-import { FaceIdIcon, PremiumShieldIcon } from "@/components/Icons";
+import { FaceIdIcon, AppleLockIcon } from "@/components/Icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { savePinForMaster, hasPinLock } from "@/components/PinLock";
 import { isBiometricsSupported, hasBiometricsEnabled, enableBiometrics, unlockWithBiometrics } from "@/lib/biometrics";
@@ -155,8 +155,8 @@ export function Auth({
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
           >
-            <div className="w-16 h-16 rounded-[18px] bg-foreground flex items-center justify-center shadow-md">
-              <PremiumShieldIcon className="w-8 h-8 text-background" />
+            <div className="w-16 h-16 rounded-[20px] bg-primary/10 flex items-center justify-center shadow-sm border border-primary/10">
+              <AppleLockIcon className="w-8 h-8 text-primary" />
             </div>
             <div>
               <h1 className="text-[24px] font-semibold text-foreground tracking-tight mb-2">Speed up future logins</h1>
