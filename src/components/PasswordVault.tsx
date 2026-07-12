@@ -134,7 +134,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching vault items:", error);
+      console.warn("Error fetching vault items:", error);
       setLoading(false);
       return;
     }
@@ -157,7 +157,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
           is_favorite: !!item.is_favorite,
         });
       } catch (err: unknown) {
-        console.error(`Failed to decrypt item ${item.title}`, err);
+        console.warn(`Failed to decrypt item ${item.title}`, err);
         decryptedItems.push({
           id: item.id,
           title: item.title,

@@ -214,7 +214,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
 
     if (error) {
       if (error.code !== "42P01" && error.code !== "PGRST205" && error.code !== "PGRST116") { // Ignore missing table if they haven't run migration yet
-        console.error("Error fetching wallet items:", JSON.stringify(error, null, 2));
+        console.warn("Error fetching wallet items:", JSON.stringify(error, null, 2));
       }
       setLoading(false);
       return;
@@ -232,7 +232,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
           payload: JSON.parse(jsonStr) as WalletPayload,
         });
       } catch (err: unknown) {
-        console.error(`Failed to decrypt wallet item ${item.title}`, err);
+        console.warn(`Failed to decrypt wallet item ${item.title}`, err);
       }
     }
     setItems(decryptedItems);

@@ -145,7 +145,7 @@ export function Dashboard({ masterPassword }: DashboardProps) {
             payload: JSON.parse(jsonStr) as DashboardWalletItem["payload"]
           });
         } catch (e) {
-          console.error("Failed to decrypt wallet item", e);
+          console.warn("Failed to decrypt wallet item", e);
         }
       }
       setRecentWallet(decryptedWallet);

@@ -77,7 +77,7 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching secure notes:", error);
+      console.warn("Error fetching secure notes:", error);
       setLoading(false);
       return;
     }
@@ -98,7 +98,7 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
           category: item.category,
         });
       } catch (err: unknown) {
-        console.error(`Failed to decrypt note ${item.title}`, err);
+        console.warn(`Failed to decrypt note ${item.title}`, err);
         decryptedItems.push({
           id: item.id,
           title: item.title,

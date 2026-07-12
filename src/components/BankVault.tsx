@@ -208,7 +208,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
 
     if (error) {
       if (error.code !== "42P01" && error.code !== "PGRST205" && error.code !== "PGRST116") {
-        console.error("Error fetching wallet items:", JSON.stringify(error, null, 2));
+        console.warn("Error fetching wallet items:", JSON.stringify(error, null, 2));
       }
       setLoading(false);
       return;
@@ -226,7 +226,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
           payload: JSON.parse(jsonStr) as BankAccountPayload,
         });
       } catch (err: unknown) {
-        console.error(`Failed to decrypt wallet item ${item.title}`, err);
+        console.warn(`Failed to decrypt wallet item ${item.title}`, err);
       }
     }
     setItems(decryptedItems);
