@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { decryptText } from "@/lib/crypto";
 import { getCache, setCache } from "@/lib/vaultCache";
 import { getVaultHealthScore } from "@/lib/passwordHealth";
+import { isBiometricsSupported, hasBiometricsEnabled, enableBiometrics } from "@/lib/biometrics";
 import { DashboardSkeleton } from "@/components/Skeleton";
 import { 
   KeyRoundIcon, 
@@ -12,7 +13,8 @@ import {
   CreditCardIcon,
   StarIcon,
   BuildingIcon,
-  ActivityIcon
+  ActivityIcon,
+  FingerprintIcon
 } from "lucide-react";
 
 interface DashboardProps {
@@ -73,6 +75,13 @@ export function Dashboard({ masterPassword }: DashboardProps) {
   const [recentNotes, setRecentNotes] = useState<DashboardNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("User");
+  const [showBioBanner, setShowBioBanner] = useState(false);
+
+  useEffect(() => {
+    if (isBiometricsSupported() && !hasBiometricsEnabled()) {
+      setShowBioBanner(true);
+    }
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -171,6 +180,42 @@ export function Dashboard({ masterPassword }: DashboardProps) {
           {userName}
         </h1>
       </div>
+
+      {/* Biometric setup banner */}
+      {showBioBanner && (
+        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+            <FingerprintIcon className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[15px] font-semibold text-foreground">Enable Face ID / Touch ID</h3>
+            <p className="text-[13px] text-muted-foreground mt-0.5 mb-3 leading-relaxed">
+              Unlock Telkar Vault instantly without entering your master key or PIN every time.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    await enableBiometrics(masterPassword);
+                    setShowBioBanner(false);
+                  } catch (err: any) {
+                    alert(err.message);
+                  }
+                }}
+                className="px-4 py-2 bg-primary text-primary-foreground text-[13px] font-semibold rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Enable Now
+              </button>
+              <button
+                onClick={() => setShowBioBanner(false)}
+                className="px-4 py-2 bg-transparent text-muted-foreground hover:text-foreground text-[13px] font-medium rounded-lg hover:bg-muted transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats — iOS-style grouped inset list */}
       <div className="bg-card rounded-[16px] border border-border overflow-hidden">
