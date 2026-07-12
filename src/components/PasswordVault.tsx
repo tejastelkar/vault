@@ -368,7 +368,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
   const renderPasswordDetail = (item: DecryptedItem) => {
     const parsed = parsePlaintext(item.plaintext);
     const strength = getStrength(item.plaintext);
-    const password = parsed.password || (!parsed.isJson && !parsed.username ? item.plaintext : null);
+    const password = parsed.password || (!parsed.isJson && !parsed.username && item.plaintext !== "Decryption Failed" ? item.plaintext : null);
     const domain = item.domain || parsed.domain;
     const href = domain ? (/^https?:\/\//i.test(domain) ? domain : `https://${domain}`) : null;
 
