@@ -564,9 +564,15 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
                             {/* Title + Subtitle */}
                             <div className="flex-1 min-w-0">
                               <div className="text-[15px] font-medium text-foreground truncate leading-snug">{item.title}</div>
-                              <div className={`text-[13px] text-muted-foreground truncate leading-tight mt-0.5 ${!item.username ? 'tracking-[0.18em]' : ''}`}>
-                                {item.username || "••••••••"}
-                              </div>
+                              {(() => {
+                                const isCombo = item.plaintext.startsWith("Username: ") && item.plaintext.includes("\nPassword: ");
+                                const username = isCombo ? item.plaintext.split("\n")[0].replace("Username: ", "") : null;
+                                return (
+                                  <div className={`text-[13px] text-muted-foreground truncate leading-tight mt-0.5 ${!username ? 'tracking-[0.18em]' : ''}`}>
+                                    {username || "••••••••"}
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             {/* Right accessories */}
