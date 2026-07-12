@@ -88,7 +88,7 @@
 .apple-grouped-list > * + * { border-top: .5px solid var(--separator) !important; }
 .apple-pressed { transition: transform var(--apple-spring), opacity 120ms ease, background-color 120ms ease; }
 .apple-pressed:active { transform: scale(.97); opacity: .72; }
-.apple-bottom-sheet { position: relative; }
+.apple-bottom-sheet:not([role="dialog"]) { position: relative; }
 .apple-sheet-grabber { display: none; }
 .apple-selection-toolbar { position: fixed; z-index: 60; left: 12px; right: 12px; bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px) + 10px); min-height: 52px; border-radius: 18px; padding: 6px 10px; align-items: center; justify-content: space-between; }
 .apple-selection-toolbar button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
