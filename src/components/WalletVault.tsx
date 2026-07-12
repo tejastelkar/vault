@@ -342,7 +342,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     if (n.startsWith("4")) return {
       name: "Visa",
       logo: (
-        <VisaLogo className="h-8 w-auto drop-shadow-md" />
+        <VisaLogo className="h-6 w-auto drop-shadow-md" />
       )
     };
 
@@ -373,7 +373,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     if (n.startsWith("60") || n.startsWith("652") || n.startsWith("6069") || n.startsWith("6070")) return {
       name: "RuPay",
       logo: (
-        <RuPayLogo className="h-8 w-auto drop-shadow-md" />
+        <RuPayLogo className="h-6 w-auto drop-shadow-md" />
       )
     };
 
@@ -642,7 +642,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
                       <div className="flex flex-col gap-0.5">
                         <span className={`text-[20px] font-semibold tracking-tight text-white/90 ${isSelectionMode ? 'ml-8' : ''}`}>{item.title}</span>
                       </div>
-                      <div className="flex items-center justify-end min-w-[60px] h-9">
+                      <div className="flex items-center justify-end min-w-[60px] h-9 mr-8">
                         {(() => {
                           const net = getCardNetwork(item.payload.number || "");
                           return net ? net.logo : <div className="w-12 h-8 bg-white/20 rounded-md backdrop-blur-sm" />;
