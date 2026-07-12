@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 export type CardNetwork = "visa" | "mastercard" | "amex" | "rupay" | "discover" | "maestro" | "generic";
 
@@ -28,9 +29,9 @@ export function CardNetworkLogo({ network, className = "" }: { network: CardNetw
   if (network === "visa" || network === "rupay") {
     const isVisa = network === "visa";
     return (
-      <span className={`block ${isVisa ? "h-7 w-[5.25rem]" : "h-7 w-[6.5rem]"} ${className}`} aria-label={isVisa ? "Visa" : "RuPay"} role="img">
+      <span className={`relative block ${isVisa ? "h-7 w-[5.25rem]" : "h-7 w-[6.5rem]"} ${className}`} aria-label={isVisa ? "Visa" : "RuPay"} role="img">
         {/* Brand artwork keeps its intrinsic aspect ratio inside one optical box. */}
-        <img src={isVisa ? "/visa.svg" : "/rupay.svg"} alt="" className="h-full w-full object-contain object-right drop-shadow-sm" />
+        <Image src={isVisa ? "/visa.svg" : "/rupay.svg"} alt="" fill sizes="104px" className="h-full w-full object-contain object-right drop-shadow-sm" />
       </span>
     );
   }
