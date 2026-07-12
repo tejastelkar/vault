@@ -200,3 +200,47 @@ export async function aiSearchVault(query: string, items: { id: string; type: st
     return null;
   }
 }
+
+export async function parseNotesToPasswords(rawText: string): Promise<any[]> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY is not set");
+  }
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are an intelligent data extraction assistant. The user will provide a messy, unstructured text note containing passwords. Your task is to extract all the passwords and return a JSON object with a single key 'passwords' containing an array of objects. Each object must have exactly the following string keys: 'title' (the service/platform name), 'url' (if a URL is provided, otherwise guess the primary domain like 'netflix.com' or leave empty string), 'username' (the email or username, if any), 'password' (the actual password, if found), and 'category' (a broad category like 'Entertainment', 'Finance', 'Work', 'Social', 'Other'). If some fields are missing in the text, leave them as empty strings. Ensure the response is valid JSON."
+        },
+        {
+          role: "user",
+          content: rawText
+        }
+      ],
+      temperature: 0.1
+    })
+  });
+
+  if (!response.ok) {
+    console.error("Groq API error:", await response.text());
+    throw new Error("Failed to parse notes");
+  }
+
+  const data = await response.json();
+  try {
+    const parsed = JSON.parse(data.choices[0].message.content);
+    return parsed.passwords || [];
+  } catch (err) {
+    console.error("Failed to parse AI JSON response", err);
+    return [];
+  }
+}

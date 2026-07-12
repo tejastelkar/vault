@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { encryptText, decryptText } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
-import { enrichPasswordMetadata } from "@/app/actions";
+import { enrichPasswordMetadata, parseNotesToPasswords } from "@/app/actions";
 import { getCache, setCache, invalidateCache } from "@/lib/vaultCache";
 import { getStrength, getVaultHealthScore, findDuplicateIds } from "@/lib/passwordHealth";
 import { useToast } from "@/components/Toast";
@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ChevronDownIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon } from "lucide-react";
+import { ChevronDownIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, Wand2Icon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface VaultItem {
@@ -58,6 +58,11 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
+  
+  // Magic Import State
+  const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
+  const [magicNotesText, setMagicNotesText] = useState("");
+  const [isMagicImporting, setIsMagicImporting] = useState(false);
 
   const fetchItems = useCallback(async (force = false) => {
     // Check cache first
@@ -151,6 +156,58 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
     } catch (err) {
       console.error("Failed to add item:", err);
       alert("Failed to encrypt and save the secret.");
+    }
+  };
+
+  const handleMagicImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!magicNotesText) return;
+    setIsMagicImporting(true);
+    
+    try {
+      const parsedPasswords = await parseNotesToPasswords(magicNotesText);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      if (!parsedPasswords || parsedPasswords.length === 0) {
+        toast("Could not find any passwords in the text.", "error");
+        setIsMagicImporting(false);
+        return;
+      }
+
+      let importedCount = 0;
+      for (const item of parsedPasswords) {
+        if (!item.password) continue;
+        
+        const title = item.title || "Unknown Service";
+        // If username exists, prepend it to the secret, else just the password
+        const secretText = item.username ? `Username: ${item.username}\nPassword: ${item.password}` : item.password;
+        
+        const encrypted = await encryptText(secretText, masterPassword);
+
+        const { error } = await supabase.from("vault_items").insert({
+          user_id: user.id,
+          title: title,
+          encrypted_data: encrypted.ciphertext,
+          iv: encrypted.iv,
+          salt: encrypted.salt,
+          category: item.category || "Uncategorized",
+          domain: item.url || null,
+        });
+        if (!error) importedCount++;
+      }
+
+      toast(`Magic imported ${importedCount} passwords!`, "success");
+      setMagicNotesText("");
+      setIsMagicImportOpen(false);
+      invalidateCache("vault_items");
+      fetchItems(true);
+
+    } catch (err) {
+      console.error("Magic import failed", err);
+      toast("Failed to parse notes.", "error");
+    } finally {
+      setIsMagicImporting(false);
     }
   };
 
@@ -322,6 +379,54 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
             className="hidden" 
             onChange={handleImportCSV} 
           />
+
+          <Dialog open={isMagicImportOpen} onOpenChange={setIsMagicImportOpen}>
+            <DialogTrigger className="rounded-full h-9 px-3 sm:px-4 text-purple-600 hover:bg-purple-600/10 font-medium flex items-center gap-1.5 text-[14px]">
+              <Wand2Icon className="w-4 h-4" />
+              <span className="hidden min-[420px]:inline">Magic Import</span>
+            </DialogTrigger>
+            <DialogContent className="border-border/50 shadow-lg sm:rounded-[20px] max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="text-center font-bold flex items-center justify-center gap-2">
+                  <Wand2Icon className="w-5 h-5 text-purple-600" />
+                  Magic Import
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleMagicImport} className="space-y-4 mt-2">
+                <div className="space-y-1">
+                  <p className="text-[14px] text-muted-foreground text-center mb-4">
+                    Paste your unstructured notes containing passwords (from Apple Notes, Keep, etc.). Our AI will securely parse and import them for you!
+                  </p>
+                  <textarea
+                    placeholder="Netflix - myemail@gmail.com - mypass123&#10;Bank: 1234&#10;..."
+                    value={magicNotesText}
+                    onChange={(e) => setMagicNotesText(e.target.value)}
+                    className="w-full bg-secondary border border-transparent rounded-xl px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all min-h-[200px] resize-y"
+                    required
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  disabled={isMagicImporting || !magicNotesText}
+                  className="w-full h-12 rounded-xl font-semibold text-[17px] mt-4 bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2 justify-center"
+                >
+                  {isMagicImporting ? (
+                    <>
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                        <Wand2Icon className="w-5 h-5" />
+                      </motion.div>
+                      Analyzing Notes...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2Icon className="w-5 h-5" />
+                      Extract & Import
+                    </>
+                  )}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger className="rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px]">
