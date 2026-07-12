@@ -29,10 +29,11 @@ export function CardNetworkLogo({ network, className = "" }: { network: CardNetw
   if (network === "visa" || network === "rupay") {
     const isVisa = network === "visa";
     return (
-      <span className={`relative block ${isVisa ? "h-7 w-[5.25rem]" : "h-7 w-[6.5rem]"} ${className}`} aria-label={isVisa ? "Visa" : "RuPay"} role="img">
-        {/* Brand artwork keeps its intrinsic aspect ratio inside one optical box. */}
-        <Image src={isVisa ? "/visa.svg" : "/rupay.svg"} alt="" fill sizes="104px" className="h-full w-full object-contain object-right drop-shadow-sm" />
-      </span>
+      <img 
+        src={isVisa ? "/visa.svg" : "/rupay.svg"} 
+        alt={isVisa ? "Visa" : "RuPay"} 
+        className={`h-7 w-auto object-contain object-right drop-shadow-sm ${className}`} 
+      />
     );
   }
 
