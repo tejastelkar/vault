@@ -4,6 +4,7 @@ import { encryptText, decryptText } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
 import { CardListSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { SelectionToolbar } from "@/components/SelectionToolbar";
 import {
   Dialog,
   DialogContent,
@@ -421,7 +422,7 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
       </div>
       {/* Floating Action Bar for Bulk Selection */}
       {isSelectionMode && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-popover/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl px-5 py-3.5 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-300 z-50">
+        <><SelectionToolbar count={selectedIds.size} onCancel={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} onDelete={handleBulkDelete} /><div className="hidden md:flex fixed bottom-8 left-1/2 -translate-x-1/2 bg-popover/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl px-5 py-3.5 items-center gap-4 animate-in slide-in-from-bottom-4 duration-300 z-50">
           <button
             onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }}
             className="text-[14px] font-semibold text-muted-foreground hover:text-foreground transition-colors px-2"
@@ -450,7 +451,7 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
               </Button>
             </>
           )}
-        </div>
+        </div></>
       )}
     </div>
   );

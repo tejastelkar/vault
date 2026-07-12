@@ -9,6 +9,7 @@ import { getStrength, getVaultHealthScore, findDuplicateIds } from "@/lib/passwo
 import { useToast } from "@/components/Toast";
 import { PasswordListSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { SelectionToolbar } from "@/components/SelectionToolbar";
 import Papa from "papaparse";
 import {
   Dialog,
@@ -750,7 +751,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
 
       {/* Floating Action Bar for Bulk Selection */}
       {isSelectionMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-popover/80 backdrop-blur-xl border border-border shadow-2xl rounded-2xl px-6 py-4 flex items-center gap-6 animate-in slide-in-from-bottom-8 duration-300 z-50">
+        <><SelectionToolbar count={selectedIds.size} onCancel={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} onDelete={handleBulkDelete} /><div className="hidden md:flex fixed bottom-8 left-1/2 -translate-x-1/2 bg-popover/80 backdrop-blur-xl border border-border shadow-2xl rounded-2xl px-6 py-4 items-center gap-6 animate-in slide-in-from-bottom-8 duration-300 z-50">
           <span className="text-[15px] font-semibold text-foreground">
             {selectedIds.size} selected
           </span>
@@ -763,7 +764,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
             <TrashIcon className="w-4 h-4" />
             Delete
           </Button>
-        </div>
+        </div></>
       )}
     </div>
   );
