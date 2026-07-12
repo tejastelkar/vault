@@ -255,7 +255,7 @@ export function Auth({
           {/* Numpad */}
           <div className="grid grid-cols-3 gap-3 w-full">
             {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k, i) => {
-              if (k === "") return <div key={i} />;
+              if (k === "") return <div key="empty" />;
               return (
                 <motion.button
                   key={k}

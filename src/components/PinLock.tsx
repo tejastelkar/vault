@@ -244,7 +244,7 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
           }}
         >
           {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k, i) => {
-            if (k === "") return <div key={i} />;
+            if (k === "") return <div key="empty" />;
             return (
               <motion.button
                 key={k}
