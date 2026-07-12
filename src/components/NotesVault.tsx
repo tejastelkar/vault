@@ -11,9 +11,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ChevronDownIcon, ChevronRightIcon, FileIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, FileIcon, Wand2Icon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { categorizeNote } from "@/app/actions";
+import { categorizeNote, parseBulkNotes } from "@/app/actions";
 import { setCache, invalidateCache } from "@/lib/vaultCache";
 
 interface SecureNote {
@@ -41,6 +41,11 @@ export function NotesVault({ masterPassword }: { masterPassword: string }) {
   // New Item State
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
+
+  // Magic Import State
+  const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
+  const [magicNotesText, setMagicNotesText] = useState("");
+  const [isMagicImporting, setIsMagicImporting] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -124,6 +129,56 @@ export function NotesVault({ masterPassword }: { masterPassword: string }) {
     }
   };
 
+  const handleMagicImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!magicNotesText) return;
+    setIsMagicImporting(true);
+    
+    try {
+      const parsedNotes = await parseBulkNotes(magicNotesText);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      if (!parsedNotes || parsedNotes.length === 0) {
+        alert("Could not find any notes in the text.");
+        setIsMagicImporting(false);
+        return;
+      }
+
+      let importedCount = 0;
+      for (const item of parsedNotes) {
+        if (!item.content) continue;
+        
+        const title = item.title || "Unknown Note";
+        const contentText = item.content;
+        
+        const encrypted = await encryptText(contentText, masterPassword);
+
+        const { error } = await supabase.from("secure_notes").insert({
+          user_id: user.id,
+          title: title,
+          encrypted_content: encrypted.ciphertext,
+          iv: encrypted.iv,
+          salt: encrypted.salt,
+          category: item.category || "Uncategorized",
+        });
+        if (!error) importedCount++;
+      }
+
+      alert(`Magic imported ${importedCount} notes!`);
+      setMagicNotesText("");
+      setIsMagicImportOpen(false);
+      invalidateCache("secure_notes");
+      fetchItems();
+
+    } catch (err) {
+      console.error("Magic import failed", err);
+      alert("Failed to parse notes.");
+    } finally {
+      setIsMagicImporting(false);
+    }
+  };
+
   const handleDeleteItem = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this note?")) return;
@@ -144,11 +199,60 @@ export function NotesVault({ masterPassword }: { masterPassword: string }) {
       <div className="flex items-center justify-between gap-3 mb-5 sm:mb-8">
         <h2 className="text-[28px] sm:text-[32px] font-bold tracking-tight">Secure Notes</h2>
         
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger className="rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px]">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-              Add
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Dialog open={isMagicImportOpen} onOpenChange={setIsMagicImportOpen}>
+            <DialogTrigger className="rounded-full h-9 px-3 sm:px-4 text-purple-600 hover:bg-purple-600/10 font-medium flex items-center gap-1.5 text-[14px]">
+              <Wand2Icon className="w-4 h-4" />
+              <span className="hidden min-[420px]:inline">Magic Import</span>
+            </DialogTrigger>
+            <DialogContent className="border-border/50 shadow-lg sm:rounded-[20px] max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="text-center font-bold flex items-center justify-center gap-2">
+                  <Wand2Icon className="w-5 h-5 text-purple-600" />
+                  Magic Import Notes
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleMagicImport} className="space-y-4 mt-2">
+                <div className="space-y-1">
+                  <p className="text-[14px] text-muted-foreground text-center mb-4">
+                    Paste your huge unstructured notes dump (from Apple Notes, Keep, etc.). Our AI will securely split them into separate, categorized notes!
+                  </p>
+                  <textarea
+                    placeholder="Note 1: My ideas...&#10;&#10;Note 2: Things to buy...&#10;..."
+                    value={magicNotesText}
+                    onChange={(e) => setMagicNotesText(e.target.value)}
+                    className="w-full bg-secondary border border-transparent rounded-xl px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all min-h-[200px] resize-y"
+                    required
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  disabled={isMagicImporting || !magicNotesText}
+                  className="w-full h-12 rounded-xl font-semibold text-[17px] mt-4 bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2 justify-center"
+                >
+                  {isMagicImporting ? (
+                    <>
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                        <Wand2Icon className="w-5 h-5" />
+                      </motion.div>
+                      Analyzing Notes...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2Icon className="w-5 h-5" />
+                      Extract & Import
+                    </>
+                  )}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger className="rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                Add
+            </DialogTrigger>
           <DialogContent className="border-border/50 shadow-lg sm:rounded-[20px] max-w-lg">
             <DialogHeader>
               <DialogTitle className="text-center font-bold">New Secure Note</DialogTitle>
@@ -181,9 +285,10 @@ export function NotesVault({ masterPassword }: { masterPassword: string }) {
               >
                 Save Note
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="w-full">

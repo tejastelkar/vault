@@ -244,3 +244,47 @@ export async function parseNotesToPasswords(rawText: string): Promise<any[]> {
     return [];
   }
 }
+
+export async function parseBulkNotes(rawText: string): Promise<any[]> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY is not set");
+  }
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are an intelligent data extraction assistant. The user will provide a massive block of unstructured text that contains multiple distinct notes mashed together. Your task is to find the logical boundaries between these different notes and extract them into an array of distinct items. Return a JSON object with a single key 'notes' containing an array of objects. Each object must have exactly the following string keys: 'title' (a short, generated title for the note), 'content' (the actual text content of the note), and 'category' (a broad category like 'Personal', 'Work', 'Ideas', 'Finance', 'Travel', 'Other'). Ensure the response is valid JSON."
+        },
+        {
+          role: "user",
+          content: rawText
+        }
+      ],
+      temperature: 0.1
+    })
+  });
+
+  if (!response.ok) {
+    console.error("Groq API error:", await response.text());
+    throw new Error("Failed to parse bulk notes");
+  }
+
+  const data = await response.json();
+  try {
+    const parsed = JSON.parse(data.choices[0].message.content);
+    return parsed.notes || [];
+  } catch (err) {
+    console.error("Failed to parse AI JSON response", err);
+    return [];
+  }
+}
