@@ -346,7 +346,8 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
         <h2 className="hidden md:block type-section-title">Digital Wallet</h2>
         
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <DropdownMenu>
+          {items.length > 0 && (
+            <DropdownMenu>
             <DropdownMenuTrigger className="rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
               <MoreHorizontalIcon className="w-5 h-5" />
             </DropdownMenuTrigger>
@@ -380,6 +381,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger className="rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px] shrink-0">

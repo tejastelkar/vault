@@ -206,7 +206,8 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
         </div>
         
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <DropdownMenu>
+          {items.length > 0 && (
+            <DropdownMenu>
             <DropdownMenuTrigger className="rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
               <MoreHorizontalIcon className="w-5 h-5" />
             </DropdownMenuTrigger>
@@ -240,6 +241,7 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
               )}
               </DropdownMenuContent>
           </DropdownMenu>
+          )}
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger className="rounded-full h-9 px-4 sm:px-5 font-semibold text-[14px] flex items-center gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 outline-none">
