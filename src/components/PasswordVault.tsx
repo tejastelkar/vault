@@ -183,11 +183,22 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
 
       let importedCount = 0;
       for (const item of parsedPasswords) {
-        if (!item.password) continue;
+        if (!item.password && !item.extra_details) continue;
         
         const title = item.title || "Unknown Service";
-        // If username exists, prepend it to the secret, else just the password
-        const secretText = item.username ? `Username: ${item.username}\nPassword: ${item.password}` : item.password;
+        
+        let secretText = "";
+        if (item.username && item.password) {
+          secretText = `Username: ${item.username}\nPassword: ${item.password}`;
+        } else if (item.username) {
+          secretText = `Username: ${item.username}`;
+        } else if (item.password) {
+          secretText = `Password: ${item.password}`;
+        }
+        
+        if (item.extra_details) {
+          secretText += secretText ? `\n\n${item.extra_details}` : item.extra_details;
+        }
         
         const encrypted = await encryptText(secretText, masterPassword);
 
@@ -638,9 +649,10 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
                                 {/* Password value & actions */}
                                 {(() => {
                                   if (item.plaintext.startsWith("Username: ") && item.plaintext.includes("\nPassword: ")) {
-                                    const [userPart, passPart] = item.plaintext.split("\n");
+                                    const [userPart, passPart, ...rest] = item.plaintext.split("\n");
                                     const username = userPart.replace("Username: ", "");
                                     const password = passPart.replace("Password: ", "");
+                                    const extraDetails = rest.join("\n").trim();
                                     return (
                                       <div className="space-y-3">
                                         <div>
@@ -671,6 +683,22 @@ export function PasswordVault({ masterPassword }: { masterPassword: string }) {
                                             </button>
                                           </div>
                                         </div>
+                                        {extraDetails && (
+                                          <div>
+                                            <label className="text-[12px] text-muted-foreground uppercase tracking-wider font-semibold mb-1 block pl-1">Extra Details</label>
+                                            <div className="flex gap-2">
+                                              <div className="flex-1 bg-secondary rounded-xl px-4 py-3 font-mono text-[14px] text-foreground tracking-wide whitespace-pre-wrap break-words select-all border border-border/50">
+                                                {extraDetails}
+                                              </div>
+                                              <button
+                                                onClick={() => copyToClipboard(extraDetails, "Extra Details")}
+                                                className="px-4 rounded-xl font-semibold bg-secondary hover:bg-secondary/80 active:scale-[0.98] transition-all border border-border/50 text-foreground"
+                                              >
+                                                Copy
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
                                         <div className="pt-2">
                                           <button
                                             onClick={(e) => handleDeleteItem(item.id, e)}
