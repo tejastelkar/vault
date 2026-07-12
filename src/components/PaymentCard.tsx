@@ -57,10 +57,10 @@ export function PaymentCard({
     >
       <button
         type="button"
-        className={`wallet-card bg-gradient-to-br ${colorClass}`}
+        className={`wallet-card aspect-[1.586/1] bg-gradient-to-br ${colorClass}`}
         onClick={selectionMode ? onToggleChecked : onActivate}
-        onDoubleClick={() => onCopyNumber(number)}
         aria-current={selected ? "true" : undefined}
+        aria-pressed={selectionMode ? checked : undefined}
         aria-label={`${title}, ${subtype ?? "payment"} card`}
       >
         <span className="wallet-card-highlight" aria-hidden="true" />
@@ -87,6 +87,17 @@ export function PaymentCard({
             <strong>{expiry || "••/••"}</strong>
           </span>
         </span>
+      </button>
+      <button
+        type="button"
+        className="wallet-card-copy"
+        onClick={(event) => {
+          event.stopPropagation();
+          onCopyNumber(number);
+        }}
+        aria-label={`Copy card number for ${title}`}
+      >
+        Copy card number
       </button>
     </motion.article>
   );
