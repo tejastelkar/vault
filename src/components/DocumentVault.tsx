@@ -13,8 +13,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import { AdaptiveSheet, AdaptiveSheetBody, AdaptiveSheetFooter } from "@/components/ui/adaptive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon, ChevronRightIcon, FileIcon, DownloadIcon, XIcon, SparklesIcon, MoreHorizontalIcon, CheckSquareIcon, SquareIcon, TrashIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOptimisticDelete } from "@/hooks/useOptimisticDelete";
+import { ContextActions } from "@/components/ui/context-actions";
 
 interface VaultDocument {
   id: string;
@@ -33,7 +35,7 @@ interface VaultDocument {
   category?: string;
 }
 
-export function DocumentVault({ masterPassword, focusedItemId }: { masterPassword: string, focusedItemId?: string | null }) {
+export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 0 }: { masterPassword: string, focusedItemId?: string | null, refreshVersion?: number }) {
   const [documents, setDocuments] = useState<VaultDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -49,6 +51,13 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
   // Bulk State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { scheduleDelete } = useOptimisticDelete({ items: documents, setItems: setDocuments, toastLabel: (item) => item.title || "Document", commitDelete: async (item) => {
+    const { error: storageError } = await supabase.storage.from("vault_documents").remove([item.storage_path]);
+    if (storageError) throw storageError;
+    const { error } = await supabase.from("vault_documents").delete().eq("id", item.id);
+    if (error) throw error;
+    invalidateCache("vault_documents");
+  } });
 
   useEffect(() => {
     if (focusedItemId) {
@@ -81,6 +90,12 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
       void fetchDocuments();
     });
   }, [fetchDocuments]);
+
+  useEffect(() => {
+    if (!refreshVersion) return;
+    invalidateCache("vault_documents");
+    queueMicrotask(() => void fetchDocuments());
+  }, [fetchDocuments, refreshVersion]);
 
   const getMimeType = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase();
@@ -216,18 +231,10 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
     }
   };
 
-  const handleDelete = async (doc: VaultDocument, e: React.MouseEvent) => {
+  const handleDelete = (doc: VaultDocument, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete ${doc.title}?`)) return;
-
-    await supabase.storage.from("vault_documents").remove([doc.storage_path]);
-    const { error } = await supabase.from("vault_documents").delete().eq("id", doc.id);
-    
-    if (!error) {
-      if (expandedId === doc.id) setExpandedId(null);
-      invalidateCache("vault_documents");
-      fetchDocuments();
-    }
+    if (expandedId === doc.id) setExpandedId(null);
+    scheduleDelete(doc);
   };
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
@@ -260,7 +267,7 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
   };
 
   return (
-    <div className="apple-surface w-full">
+    <div className="apple-surface vault-system-surface w-full">
       <div className="vault-section-toolbar">
         <div className="vault-section-heading">
           <h2 className="type-section-title">Documents</h2>
@@ -308,16 +315,13 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
           </DropdownMenu>
           )}
 
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger render={<Button variant="ghost" className="vault-section-primary-action rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5" />}>
+          <Button type="button" variant="ghost" onClick={() => setIsAddOpen(true)} className="vault-section-primary-action rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
               Upload
-            </DialogTrigger>
-          <DialogContent className="responsive-form-sheet sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="text-center font-bold">Secure File Upload</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleUpload} className="space-y-4 mt-2">
+          </Button>
+          <AdaptiveSheet open={isAddOpen} onOpenChange={setIsAddOpen} title="Secure File Upload" description="Encrypt a document before it is stored." size="sm" className="vault-create-sheet">
+            <form onSubmit={handleUpload} className="vault-create-form">
+            <AdaptiveSheetBody className="space-y-4">
               <div className="flex flex-col gap-3 p-4">
                 <input
                   type="file"
@@ -338,16 +342,10 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
                   </label>
                 </div>
               </div>
-              <Button 
-                type="submit" 
-                className="w-full h-12 rounded-xl font-semibold text-[17px] mt-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-                disabled={uploading || !selectedFile}
-              >
-                {uploading ? "Encrypting..." : "Encrypt & Upload"}
-              </Button>
+            </AdaptiveSheetBody>
+            <AdaptiveSheetFooter><Button type="button" variant="ghost" onClick={() => setIsAddOpen(false)}>Cancel</Button><Button type="submit" className="import-primary-action" disabled={uploading || !selectedFile}>{uploading ? "Encrypting..." : "Encrypt & Upload"}</Button></AdaptiveSheetFooter>
             </form>
-          </DialogContent>
-        </Dialog>
+          </AdaptiveSheet>
         </div>
       </div>
 
@@ -400,7 +398,12 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
                   const isSelected = selectedIds.has(doc.id);
 
               return (
-                  <motion.div 
+                <ContextActions key={doc.id} title={doc.title} actions={[
+                  { id: "preview", label: "Preview", onSelect: () => void handlePreview(doc) },
+                  { id: "download", label: "Download", onSelect: () => void handleDownload(doc) },
+                  { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedId === doc.id) setExpandedId(null); scheduleDelete(doc); } },
+                ]}>{(bindings) => <motion.div
+                    {...bindings}
                     layout
                     id={`item-${doc.id}`}
                     key={doc.id}
@@ -475,7 +478,8 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
                     </motion.div>
                   )}
                   </AnimatePresence>
-                </motion.div>
+                </motion.div>}
+                </ContextActions>
               );
             })}
                   </AnimatePresence>

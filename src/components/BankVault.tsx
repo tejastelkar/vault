@@ -7,13 +7,7 @@ import { WalletSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { SelectionToolbar } from "@/components/SelectionToolbar";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { AdaptiveSheet, AdaptiveSheetBody, AdaptiveSheetFooter } from "@/components/ui/adaptive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BuildingIcon, TrashIcon, CopyIcon, CameraIcon, Loader2Icon, MoreHorizontalIcon, CheckSquareIcon, SquareIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import { useToast } from "@/components/Toast";
+import { useOptimisticDelete } from "@/hooks/useOptimisticDelete";
+import { copySensitiveText } from "@/lib/secureClipboard";
+import { ContextActions } from "@/components/ui/context-actions";
 
 interface SecureWallet {
   id: string;
@@ -113,7 +111,8 @@ const TiltCard = ({ children, className }: { children: React.ReactNode, classNam
   );
 };
 
-export function BankVault({ masterPassword, focusedItemId }: { masterPassword: string, focusedItemId?: string | null }) {
+export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }: { masterPassword: string, focusedItemId?: string | null, refreshVersion?: number }) {
+  const toast = useToast();
   const [items, setItems] = useState<DecryptedBank[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -132,6 +131,11 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
+  const { scheduleDelete } = useOptimisticDelete({ items, setItems, toastLabel: (item) => item.title || "Bank account", commitDelete: async (item) => {
+    const { error } = await supabase.from("secure_wallet").delete().eq("id", item.id);
+    if (error) throw error;
+    invalidateCache("secure_wallet_banks");
+  } });
 
   useEffect(() => {
     if (focusedItemId) {
@@ -240,6 +244,12 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
     });
   }, [fetchItems]);
 
+  useEffect(() => {
+    if (!refreshVersion) return;
+    invalidateCache("secure_wallet_banks");
+    queueMicrotask(() => void fetchItems());
+  }, [fetchItems, refreshVersion]);
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
@@ -280,14 +290,12 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
     }
   };
 
-  const handleDeleteItem = async (id: string, e?: React.SyntheticEvent) => {
+  const handleDeleteItem = (id: string, e?: React.SyntheticEvent) => {
     e?.stopPropagation();
-    if (!confirm("Are you sure you want to delete this item?")) return;
-    const { error } = await supabase.from("secure_wallet").delete().eq("id", id);
-    if (!error) {
-      invalidateCache("secure_wallet_banks");
-      fetchItems();
-    }
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item) return;
+    if (expandedBankId === id) setExpandedBankId(null);
+    scheduleDelete(item);
   };
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
@@ -317,8 +325,9 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string) => {
+    const { scheduled } = await copySensitiveText(text);
+    toast(`Copied${scheduled ? " and scheduled to clear" : ""}`, "success");
   };
 
   const selectedBank = items.find((item) => item.id === expandedBankId) ?? null;
@@ -328,7 +337,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
     ?.split(":").slice(1).join(":").trim();
 
   return (
-    <div className="apple-surface w-full relative" style={{ perspective: "1500px" }}>
+    <div className="apple-surface vault-system-surface w-full relative" style={{ perspective: "1500px" }}>
       <div className="vault-section-toolbar">
         <div className="vault-section-heading">
           <h2 className="type-section-title">Bank Accounts</h2>
@@ -372,17 +381,14 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
           </DropdownMenu>
           )}
 
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger className="vault-section-primary-action rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px] shrink-0">
+          <button type="button" onClick={() => setIsAddOpen(true)} className="vault-section-primary-action rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px] shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                 Add Account
-            </DialogTrigger>
-          <DialogContent className="responsive-form-sheet sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-center font-bold">New Bank Account</DialogTitle>
-            </DialogHeader>
-
-            <div className="mt-4 flex flex-col gap-2">
+          </button>
+          <AdaptiveSheet open={isAddOpen} onOpenChange={setIsAddOpen} title="New Bank Account" description="Scan or enter account details. Everything is encrypted before saving." size="md" className="vault-create-sheet">
+            <form onSubmit={handleAddItem} className="vault-create-form">
+            <AdaptiveSheetBody className="space-y-4">
+            <div className="flex flex-col gap-2">
               <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
               <Button 
                 type="button" 
@@ -400,7 +406,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
               </Button>
             </div>
 
-            <form onSubmit={handleAddItem} className="space-y-4 mt-2">
+            <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[13px] text-muted-foreground ml-1 font-medium">Nickname / Title</label>
                 <input
@@ -446,15 +452,11 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
                 />
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full h-12 rounded-xl font-semibold text-[17px] mt-4 bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                Encrypt & Save
-              </Button>
+            </div>
+            </AdaptiveSheetBody>
+            <AdaptiveSheetFooter><Button type="button" variant="ghost" onClick={() => setIsAddOpen(false)}>Cancel</Button><Button type="submit" className="import-primary-action">Encrypt & Save</Button></AdaptiveSheetFooter>
             </form>
-          </DialogContent>
-        </Dialog>
+          </AdaptiveSheet>
         </div>
       </div>
 
@@ -467,7 +469,12 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
           <motion.div layout className="apple-bank-list apple-master-list apple-grouped-list" aria-label="Bank accounts">
             <AnimatePresence>
             {items.map((item) => (
-              <motion.div 
+              <ContextActions key={item.id} title={item.title} actions={[
+                { id: "open", label: expandedBankId === item.id ? "Close details" : "View details", onSelect: () => setExpandedBankId(expandedBankId === item.id ? null : item.id) },
+                { id: "copy", label: "Copy account number", disabled: !item.payload.account, onSelect: () => { if (item.payload.account) void copyToClipboard(item.payload.account); } },
+                { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedBankId === item.id) setExpandedBankId(null); scheduleDelete(item); } },
+              ]}>{(bindings) => <motion.div
+                {...bindings}
                 layout
                 id={`item-${item.id}`}
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -504,7 +511,8 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
                     </div>
 
                   </button>
-              </motion.div>
+              </motion.div>}
+              </ContextActions>
             ))}
             </AnimatePresence>
           </motion.div>

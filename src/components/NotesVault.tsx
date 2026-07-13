@@ -5,13 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CardListSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { SelectionToolbar } from "@/components/SelectionToolbar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { AdaptiveSheet, AdaptiveSheetBody, AdaptiveSheetFooter } from "@/components/ui/adaptive-sheet";
 import { ChevronDownIcon, ChevronRightIcon, FileIcon, MoreHorizontalIcon, PlusIcon, CheckSquareIcon, SquareIcon, TrashIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,6 +16,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { categorizeNote, parseBulkNotes } from "@/app/actions";
 import { setCache, getCache, invalidateCache } from "@/lib/vaultCache";
+import { useToast } from "@/components/Toast";
+import { useOptimisticDelete } from "@/hooks/useOptimisticDelete";
+import { copySensitiveText } from "@/lib/secureClipboard";
+import { ContextActions } from "@/components/ui/context-actions";
 
 interface SecureNote {
   id: string;
@@ -39,7 +37,8 @@ interface DecryptedNote {
   category?: string;
 }
 
-export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: string, focusedItemId?: string | null }) {
+export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }: { masterPassword: string, focusedItemId?: string | null, refreshVersion?: number }) {
+  const toast = useToast();
   const [items, setItems] = useState<DecryptedNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -52,6 +51,11 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
   // Bulk State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { scheduleDelete } = useOptimisticDelete({ items, setItems, toastLabel: (item) => item.title || "Note", commitDelete: async (item) => {
+    const { error } = await supabase.from("secure_notes").delete().eq("id", item.id);
+    if (error) throw error;
+    invalidateCache("secure_notes");
+  } });
 
 
 
@@ -117,6 +121,12 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
     });
   }, [fetchItems]);
 
+  useEffect(() => {
+    if (!refreshVersion) return;
+    invalidateCache("secure_notes");
+    queueMicrotask(() => void fetchItems());
+  }, [fetchItems, refreshVersion]);
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newContent) return;
@@ -153,19 +163,17 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
 
 
 
-  const handleDeleteItem = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this note?")) return;
-    const { error } = await supabase.from("secure_notes").delete().eq("id", id);
-    if (!error) {
-      if (expandedId === id) setExpandedId(null);
-      invalidateCache("secure_notes");
-      fetchItems();
-    }
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item) return;
+    if (expandedId === id) setExpandedId(null);
+    scheduleDelete(item);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string) => {
+    const { scheduled } = await copySensitiveText(text);
+    toast(`Note copied${scheduled ? " and scheduled to clear" : ""}`, "success");
   };
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
@@ -194,7 +202,7 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
   };
 
   return (
-    <div className="apple-surface w-full">
+    <div className="apple-surface vault-system-surface w-full">
       <div className="vault-section-toolbar">
         <div className="vault-section-heading">
           <h2 className="type-section-title">Secure Notes</h2>
@@ -243,16 +251,13 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
           </DropdownMenu>
           )}
 
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger className="vault-section-primary-action rounded-full h-9 px-4 sm:px-5 font-semibold text-[14px] flex items-center gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 outline-none">
+          <button type="button" onClick={() => setIsAddOpen(true)} className="vault-section-primary-action rounded-full h-9 px-4 sm:px-5 font-semibold text-[14px] flex items-center gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 outline-none">
               <PlusIcon className="w-4 h-4" />
               <span className="hidden min-[380px]:inline">New</span>
-            </DialogTrigger>
-            <DialogContent className="responsive-form-sheet sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="text-center font-bold">New Secure Note</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddItem} className="space-y-4 mt-2">
+          </button>
+          <AdaptiveSheet open={isAddOpen} onOpenChange={setIsAddOpen} title="New Secure Note" description="Write a note that stays encrypted inside your vault." size="md" className="vault-create-sheet">
+              <form onSubmit={handleAddItem} className="vault-create-form">
+              <AdaptiveSheetBody className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-[13px] text-muted-foreground ml-1 uppercase tracking-wider font-medium">Title</label>
                   <input
@@ -274,15 +279,10 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
                     required
                   />
                 </div>
-                <Button 
-                  type="submit" 
-                  className="w-full h-12 rounded-xl font-semibold text-[17px] mt-4 bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  Save Note
-                </Button>
+              </AdaptiveSheetBody>
+              <AdaptiveSheetFooter><Button type="button" variant="ghost" onClick={() => setIsAddOpen(false)}>Cancel</Button><Button type="submit" className="import-primary-action">Save Note</Button></AdaptiveSheetFooter>
               </form>
-            </DialogContent>
-          </Dialog>
+          </AdaptiveSheet>
 
 
         </div>
@@ -337,7 +337,12 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
                   const isSelected = selectedIds.has(item.id);
 
               return (
-                  <motion.div 
+                <ContextActions key={item.id} title={item.title} actions={[
+                  { id: "open", label: isExpanded ? "Close details" : "View details", onSelect: () => setExpandedId(isExpanded ? null : item.id) },
+                  { id: "copy", label: "Copy note", onSelect: () => void copyToClipboard(item.plaintext) },
+                  { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedId === item.id) setExpandedId(null); scheduleDelete(item); } },
+                ]}>{(bindings) => <motion.div
+                    {...bindings}
                     layout
                     id={`item-${item.id}`}
                     initial={{ opacity: 0 }}
@@ -411,7 +416,8 @@ export function NotesVault({ masterPassword, focusedItemId }: { masterPassword: 
                     </motion.div>
                   )}
                   </AnimatePresence>
-                </motion.div>
+                </motion.div>}
+                </ContextActions>
               );
             })}
                   </AnimatePresence>

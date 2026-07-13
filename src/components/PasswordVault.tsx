@@ -7,18 +7,15 @@ import { enrichPasswordMetadata, parseNotesToPasswords } from "@/app/actions";
 import { getCache, setCache, invalidateCache } from "@/lib/vaultCache";
 import { getStrength, getVaultHealthScore, findDuplicateIds } from "@/lib/passwordHealth";
 import { useToast } from "@/components/Toast";
+import { useOptimisticDelete } from "@/hooks/useOptimisticDelete";
+import { copySensitiveText } from "@/lib/secureClipboard";
+import { ContextActions } from "@/components/ui/context-actions";
 import { PasswordListSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { SelectionToolbar } from "@/components/SelectionToolbar";
 import Papa from "papaparse";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ChevronDownIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon, EyeIcon, EyeOffIcon, ExternalLinkIcon, XIcon, CopyIcon } from "lucide-react";
+import { AdaptiveSheet, AdaptiveSheetBody, AdaptiveSheetFooter } from "@/components/ui/adaptive-sheet";
+import { ChevronDownIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon, ExternalLinkIcon, XIcon, CopyIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -79,13 +76,13 @@ function parsePlaintext(plaintext: string): { isJson: boolean; username: string 
   };
 }
 
-export function PasswordVault({ masterPassword, focusedItemId }: { masterPassword: string, focusedItemId?: string | null }) {
+export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 0 }: { masterPassword: string, focusedItemId?: string | null, refreshVersion?: number }) {
   const toast = useToast();
   const [items, setItems] = useState<DecryptedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   
   // New Item State
   const [newTitle, setNewTitle] = useState("");
@@ -96,6 +93,11 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const { scheduleDelete } = useOptimisticDelete({ items, setItems, toastLabel: (item) => item.title || "Password", commitDelete: async (item) => {
+    const { error } = await supabase.from("vault_items").delete().eq("id", item.id);
+    if (error) throw error;
+    invalidateCache("vault_items");
+  } });
 
   useEffect(() => {
     if (focusedItemId) {
@@ -107,9 +109,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
     }
   }, [focusedItemId]);
 
-  useEffect(() => {
-    setIsPasswordVisible(false);
-  }, [expandedId]);
+
 
   useEffect(() => {
     if (!expandedId) return;
@@ -179,6 +179,12 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
     });
   }, [fetchItems]);
 
+  useEffect(() => {
+    if (!refreshVersion) return;
+    invalidateCache("vault_items");
+    queueMicrotask(() => void fetchItems(true));
+  }, [fetchItems, refreshVersion]);
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newSecret) return;
@@ -217,18 +223,12 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
 
 
 
-  const handleDeleteItem = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this secret?")) return;
-    const { error } = await supabase.from("vault_items").delete().eq("id", id);
-    if (!error) {
-      if (expandedId === id) setExpandedId(null);
-      invalidateCache("vault_items");
-      fetchItems(true);
-      toast("Password deleted", "info");
-    } else {
-      toast("Failed to delete password", "error");
-    }
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item) return;
+    if (expandedId === id) setExpandedId(null);
+    scheduleDelete(item);
   };
 
   const handleToggleFavorite = async (id: string, currentState: boolean, e: React.MouseEvent) => {
@@ -244,9 +244,9 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
     }
   };
 
-  const copyToClipboard = (text: string, label = "Password") => {
-    navigator.clipboard.writeText(text);
-    toast(`${label} copied to clipboard`, "success");
+  const copyToClipboard = async (text: string, label = "Password") => {
+    const { scheduled } = await copySensitiveText(text);
+    toast(`${label} copied${scheduled ? " and scheduled to clear" : ""}`, "success");
   };
 
   const toggleSelection = (id: string, e: React.MouseEvent) => {
@@ -376,14 +376,9 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
       <div className="apple-password-detail-row">
         <span className="type-caption text-muted-foreground">{label}</span>
         <div className="flex items-center gap-2 min-w-0">
-          <span className={`flex-1 min-w-0 truncate text-[15px] ${concealed ? "font-mono tracking-[0.12em]" : ""}`}>
-            {concealed && !isPasswordVisible ? "••••••••••••" : value}
+          <span className={`flex-1 min-w-0 truncate text-[15px] ${concealed ? "font-mono" : ""}`}>
+            {value}
           </span>
-          {concealed && (
-            <button type="button" onClick={() => setIsPasswordVisible((visible) => !visible)} className="apple-password-icon-button" aria-label={isPasswordVisible ? "Conceal password" : "Reveal password"}>
-              {isPasswordVisible ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-            </button>
-          )}
           <button type="button" onClick={() => copyToClipboard(value, copyLabel)} className="apple-password-icon-button" aria-label={`Copy ${label.toLowerCase()}`}>
             <CopyIcon className="w-4 h-4" />
           </button>
@@ -393,7 +388,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
 
     return (
       <>
-        <button className="apple-password-detail-backdrop" aria-label="Close password details" onClick={() => setExpandedId(null)} />
+        <button className="apple-password-detail-backdrop md:!block md:!fixed md:!inset-0 md:!z-[99] md:!bg-black/40 md:backdrop-blur-sm" aria-label="Close password details" onClick={() => setExpandedId(null)} />
         <motion.aside
           data-password-detail
           role="dialog"
@@ -402,7 +397,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 12 }}
-          className="apple-password-detail apple-mobile-detail-sheet"
+          className="apple-password-detail apple-mobile-detail-sheet md:!fixed md:!top-0 md:!bottom-0 md:!left-0 md:!right-0 md:!m-auto md:!w-full md:!max-w-[440px] md:!h-fit md:!max-h-[85vh] md:!z-[100] md:!shadow-2xl"
         >
           <div className="flex items-start gap-3 px-5 py-4 border-b border-border/70">
             <div className="w-11 h-11 rounded-[12px] bg-secondary flex items-center justify-center text-lg font-bold text-foreground/60 shrink-0">{item.title.charAt(0).toUpperCase()}</div>
@@ -410,28 +405,21 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
               <h3 id="password-detail-title" className="text-[20px] font-semibold tracking-tight truncate">{item.title}</h3>
               <p className="text-[13px] text-muted-foreground mt-0.5">{item.category}</p>
             </div>
-            <button type="button" onClick={() => setExpandedId(null)} className="apple-password-icon-button" aria-label="Close password details"><XIcon className="w-4 h-4" /></button>
+            <button type="button" onClick={(e) => handleToggleFavorite(item.id, item.is_favorite, e)} className="apple-password-icon-button shrink-0" aria-label="Toggle favorite">
+              <StarIcon className={`w-4 h-4 ${item.is_favorite ? "fill-primary text-primary" : ""}`} />
+            </button>
+            <button type="button" onClick={() => setExpandedId(null)} className="apple-password-icon-button shrink-0" aria-label="Close password details"><XIcon className="w-4 h-4" /></button>
           </div>
 
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-4">
               <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${strength.bg}/10 ${strength.color}`}>{strength.label}</span>
               {dupeIds.has(item.id) && <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-500">Reused</span>}
-              <button type="button" onClick={(e) => handleToggleFavorite(item.id, item.is_favorite, e)} className="ml-auto apple-password-icon-button" aria-label="Toggle favorite">
-                <StarIcon className={`w-4 h-4 ${item.is_favorite ? "fill-primary text-primary" : ""}`} />
-              </button>
             </div>
             <div className="apple-password-detail-group">
               {parsed.username && <DetailValue label="Username" value={parsed.username} />}
               {password && <DetailValue label="Password" value={password} concealed />}
-              {href && (
-                <div className="apple-password-detail-row">
-                  <span className="type-caption text-muted-foreground">Website</span>
-                  <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[15px] text-primary min-w-0">
-                    <span className="truncate">{domain}</span><ExternalLinkIcon className="w-4 h-4 shrink-0" />
-                  </a>
-                </div>
-              )}
+
               {parsed.notes && <DetailValue label="Notes" value={parsed.notes} copyLabel="Notes" />}
             </div>
             <button type="button" onClick={(e) => handleDeleteItem(item.id, e)} className="w-full mt-5 min-h-11 rounded-xl bg-destructive/10 text-destructive text-[15px] font-semibold hover:bg-destructive/15 transition-colors">Delete Password</button>
@@ -442,7 +430,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
   };
 
   return (
-    <div className="apple-surface w-full relative pb-20">
+    <div className="apple-surface vault-system-surface w-full relative pb-20">
       {/* Vault Health Banner */}
       {items.length >= 3 && (health.weak > 0 || health.reused > 0) && (
         <div className="mb-6 flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-5 py-4">
@@ -509,16 +497,13 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
           </DropdownMenu>
           )}
 
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger className="vault-section-primary-action rounded-full h-9 px-4 sm:px-5 font-semibold text-[14px] flex items-center gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 outline-none">
+          <button type="button" onClick={() => setIsAddOpen(true)} className="vault-section-primary-action rounded-full h-9 px-4 sm:px-5 font-semibold text-[14px] flex items-center gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 outline-none">
               <PlusIcon className="w-4 h-4" />
               <span className="hidden min-[380px]:inline">New</span>
-            </DialogTrigger>
-            <DialogContent className="responsive-form-sheet sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="text-center font-bold">New Password</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddItem} className="space-y-4 mt-2">
+          </button>
+          <AdaptiveSheet open={isAddOpen} onOpenChange={setIsAddOpen} title="New Password" description="Add a credential encrypted with your existing master key." size="sm" className="vault-create-sheet">
+            <form onSubmit={handleAddItem} className="vault-create-form">
+            <AdaptiveSheetBody className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[13px] text-muted-foreground ml-1 uppercase tracking-wider font-medium">Title</label>
                 <input
@@ -541,15 +526,10 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
                   required
                 />
               </div>
-              <Button 
-                type="submit" 
-                className="w-full h-12 rounded-xl font-semibold text-[17px] mt-4 bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                Save Password
-              </Button>
+            </AdaptiveSheetBody>
+            <AdaptiveSheetFooter><Button type="button" variant="ghost" onClick={() => setIsAddOpen(false)}>Cancel</Button><Button type="submit" className="import-primary-action">Save Password</Button></AdaptiveSheetFooter>
             </form>
-            </DialogContent>
-          </Dialog>
+          </AdaptiveSheet>
 
 
 
@@ -619,8 +599,15 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
                       const isSelected = selectedIds.has(item.id);
                       const s = getStrength(item.plaintext);
 
+                      const parsedForActions = parsePlaintext(item.plaintext);
                       return (
-                        <motion.div
+                        <ContextActions key={item.id} title={item.title} actions={[
+                          { id: "open", label: isExpanded ? "Close details" : "View details", onSelect: () => setExpandedId(isExpanded ? null : item.id) },
+                          { id: "copy", label: "Copy password", onSelect: () => void copyToClipboard(parsedForActions.password ?? item.plaintext) },
+                          { id: "favorite", label: item.is_favorite ? "Remove favorite" : "Add favorite", onSelect: () => void supabase.from("vault_items").update({ is_favorite: !item.is_favorite }).eq("id", item.id).then(({ error }) => { if (!error) { setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, is_favorite: !item.is_favorite } : candidate)); invalidateCache("vault_items"); } }) },
+                          { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedId === item.id) setExpandedId(null); scheduleDelete(item); } },
+                        ]}>{(bindings) => <motion.div
+                          {...bindings}
                           layout
                           id={`item-${item.id}`}
                           key={item.id}
@@ -832,7 +819,8 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
                             </motion.div>
                           )}
                           </AnimatePresence>
-                        </motion.div>
+                        </motion.div>}
+                        </ContextActions>
                       );
                     })}
                   </AnimatePresence>

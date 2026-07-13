@@ -25,6 +25,8 @@ import {
 import { getCache } from "@/lib/vaultCache";
 import { clearLocalVaultSession, SESSION_MASTER_KEY } from "@/lib/vaultSession";
 import { useAutoLock } from "@/hooks/useAutoLock";
+import { useConnectivity } from "@/hooks/useConnectivity";
+import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { aiSearchVault } from "./actions";
 import { User } from "@supabase/supabase-js";
 import {
@@ -126,6 +128,9 @@ export default function Home() {
   const [aiMatch, setAiMatch] = useState<{ id: string, title: string, type: Tab } | null>(null);
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
   const [isGlobalImportOpen, setIsGlobalImportOpen] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const connectivity = useConnectivity();
+  const wasOnline = useRef(connectivity.isOnline);
   const headerSearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -214,6 +219,11 @@ export default function Home() {
   }, []);
 
   useAutoLock({ enabled: Boolean(sessionUser && masterPassword), onLock: handleLockVault });
+
+  useEffect(() => {
+    if (!wasOnline.current && connectivity.isOnline) setRefreshVersion((version) => version + 1);
+    wasOnline.current = connectivity.isOnline;
+  }, [connectivity.isOnline]);
 
   const handleNavigate = useCallback((tab: Tab, id?: string) => {
     setActiveTab(tab);
@@ -322,6 +332,7 @@ export default function Home() {
   }
 
   const sharedProps = { masterPassword, focusedItemId };
+  const nonWalletProps = { masterPassword, focusedItemId, refreshVersion };
 
 
 
@@ -332,6 +343,7 @@ export default function Home() {
 
   return (
     <div className="ios-app-shell apple-app flex h-screen w-full overflow-hidden">
+      <ConnectivityBanner isOnline={connectivity.isOnline} />
 
       {/* ── Sidebar ─────────────────────────────────────────── */}
       <aside className="apple-sidebar w-60 hidden md:flex flex-col shrink-0 sidebar-vibrancy border-r"
@@ -647,11 +659,11 @@ export default function Home() {
         <div ref={contentScrollRef} className="ios-content-scroll flex-1 overflow-auto">
           <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 md:px-7 py-4 sm:py-5 pb-32 md:pb-8">
             <div style={{ display: activeTab === "dashboard" ? undefined : "none" }}><Dashboard  {...sharedProps} /></div>
-            <div style={{ display: activeTab === "passwords" ? undefined : "none" }}><PasswordVault {...sharedProps} /></div>
-            <div style={{ display: activeTab === "documents" ? undefined : "none" }}><DocumentVault {...sharedProps} /></div>
-            <div style={{ display: activeTab === "notes"     ? undefined : "none" }}><NotesVault {...sharedProps} /></div>
+            <div style={{ display: activeTab === "passwords" ? undefined : "none" }}><PasswordVault {...nonWalletProps} /></div>
+            <div style={{ display: activeTab === "documents" ? undefined : "none" }}><DocumentVault {...nonWalletProps} /></div>
+            <div style={{ display: activeTab === "notes"     ? undefined : "none" }}><NotesVault {...nonWalletProps} /></div>
             <div style={{ display: activeTab === "wallet"    ? undefined : "none" }}><WalletVault {...sharedProps} /></div>
-            <div style={{ display: activeTab === "banks"     ? undefined : "none" }}><BankVault {...sharedProps} /></div>
+            <div style={{ display: activeTab === "banks"     ? undefined : "none" }}><BankVault {...nonWalletProps} /></div>
             <div style={{ display: activeTab === "profile"   ? undefined : "none" }}><Settings masterPassword={masterPassword} onLock={handleLockVault} /></div>
           </div>
         </div>
