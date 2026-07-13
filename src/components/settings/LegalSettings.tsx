@@ -4,20 +4,22 @@ import { motion, AnimatePresence } from "framer-motion";
 
 type PolicyType = "privacy" | "terms" | "security" | null;
 
+const transition = { duration: 0.4, ease: [0.32, 0.72, 0, 1] as const };
+
 export function LegalSettings() {
   const [activePolicy, setActivePolicy] = useState<PolicyType>(null);
 
   return (
-    <div className="relative overflow-hidden h-full">
-      <AnimatePresence mode="wait">
+    <div className="relative w-full h-full overflow-hidden">
+      <AnimatePresence initial={false}>
         {activePolicy === "privacy" && (
           <motion.section 
             key="privacy"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="settings-detail-section h-full overflow-y-auto"
+            initial={{ x: "100%", opacity: 1 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 1 }}
+            transition={transition}
+            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-10"
           >
             <header className="flex items-center gap-2 mb-6">
               <button 
@@ -72,11 +74,11 @@ export function LegalSettings() {
         {activePolicy === "terms" && (
           <motion.section 
             key="terms"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="settings-detail-section h-full overflow-y-auto"
+            initial={{ x: "100%", opacity: 1 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 1 }}
+            transition={transition}
+            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-10"
           >
             <header className="flex items-center gap-2 mb-6">
               <button 
@@ -116,11 +118,11 @@ export function LegalSettings() {
         {activePolicy === "security" && (
           <motion.section 
             key="security"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="settings-detail-section h-full overflow-y-auto"
+            initial={{ x: "100%", opacity: 1 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 1 }}
+            transition={transition}
+            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-10"
           >
             <header className="flex items-center gap-2 mb-6">
               <button 
@@ -166,11 +168,11 @@ export function LegalSettings() {
         {activePolicy === null && (
           <motion.section 
             key="list"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="settings-detail-section h-full overflow-y-auto"
+            initial={{ x: "-30%", opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "-30%", opacity: 0 }}
+            transition={transition}
+            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-0"
             aria-labelledby="settings-legal-title"
           >
             <header>
