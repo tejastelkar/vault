@@ -495,9 +495,9 @@ export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }:
                     {expandedBankId === item.id && !isSelectionMode && (
                       <motion.div
                         layoutId="bank-active-bg"
-                        className="absolute inset-0 bg-primary/10"
-                        transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                        style={{ zIndex: 0 }}
+                        className="absolute bg-primary/10 rounded-[12px]"
+                        style={{ top: '6px', bottom: '6px', left: '6px', right: '6px', zIndex: 0 }}
+                        transition={{ type: "spring", bounce: 0.25, duration: 0.4 }}
                       />
                     )}
                     {isSelectionMode && (
