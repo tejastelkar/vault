@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { SelectionToolbar } from "@/components/SelectionToolbar";
 import Papa from "papaparse";
 import { AdaptiveSheet, AdaptiveSheetBody, AdaptiveSheetFooter } from "@/components/ui/adaptive-sheet";
-import { ChevronDownIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon, ExternalLinkIcon, XIcon, CopyIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon, ExternalLinkIcon, XIcon, CopyIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -549,7 +549,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
         ) : items.length === 0 ? (
           <EmptyState type="passwords" onCta={() => setIsAddOpen(true)} />
         ) : (
-          <motion.div layout data-password-master className="apple-password-master apple-master-list space-y-7">
+          <motion.div layout="position" data-password-master className="apple-password-master apple-master-list space-y-7">
             <AnimatePresence>
             {Object.entries(
               items.reduce((acc, item) => {
@@ -563,7 +563,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
               if (b === "Favorites") return 1;
               return a.localeCompare(b);
             }).map(([category, categoryItems]) => (
-              <motion.div layout key={category} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div layout="position" key={category} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
 
                 {/* Section header */}
                 <div className="flex items-center justify-between mb-2 px-1">
@@ -608,7 +608,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
                           { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedId === item.id) setExpandedId(null); scheduleDelete(item); } },
                         ]}>{(bindings) => <motion.div
                           {...bindings}
-                          layout
+                          layout="position"
                           id={`item-${item.id}`}
                           key={item.id}
                           initial={{ opacity: 0 }}
@@ -662,7 +662,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
 
                             {/* Title + Subtitle */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-[15px] font-medium text-foreground truncate leading-snug">{item.title}</div>
+                              <div className={`text-[15px] font-medium truncate leading-snug ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{item.title}</div>
                               {(() => {
                                 const parsed = parsePlaintext(item.plaintext);
                                 const subtitle = parsed.username;
@@ -680,8 +680,8 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
                                 <StarIcon className="w-3.5 h-3.5 fill-primary text-primary" />
                               )}
                               {!isSelectionMode && (
-                                <ChevronDownIcon
-                                  className={`w-4 h-4 text-muted-foreground/60 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                                <ChevronRightIcon
+                                  className={`w-4 h-4 ${isExpanded ? 'text-primary' : 'text-muted-foreground/60'}`}
                                   strokeWidth={2}
                                 />
                               )}

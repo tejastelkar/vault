@@ -466,7 +466,7 @@ export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }:
         ) : items.length === 0 ? (
           <EmptyState type="bank" onCta={() => setIsAddOpen(true)} />
         ) : (
-          <motion.div layout className="apple-bank-list apple-master-list flex flex-col gap-1" aria-label="Bank accounts">
+          <motion.div layout="position" className="apple-bank-list apple-master-list flex flex-col gap-1" aria-label="Bank accounts">
             <AnimatePresence>
             {items.map((item) => (
               <ContextActions key={item.id} title={item.title} actions={[
@@ -475,7 +475,7 @@ export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }:
                 { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedBankId === item.id) setExpandedBankId(null); scheduleDelete(item); } },
               ]}>{(bindings) => <motion.div
                 {...bindings}
-                layout
+                layout="position"
                 id={`item-${item.id}`}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -513,9 +513,9 @@ export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }:
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <BuildingIcon strokeWidth={2} className="w-5 h-5 text-primary" />
                         </div>
-                        <div><span className="type-row-title block">{item.title}</span><span className="type-metadata text-muted-foreground">Account suffix ••••{(item.payload.account || "").slice(-4)} · IFSC / Routing {item.payload.routing || "—"}</span></div>
+                        <div><span className={`type-row-title block ${expandedBankId === item.id ? 'text-primary' : ''}`}>{item.title}</span><span className="type-metadata text-muted-foreground">Account suffix ••••{(item.payload.account || "").slice(-4)} · IFSC / Routing {item.payload.routing || "—"}</span></div>
                       </div>
-                      <ChevronRightIcon className={`h-5 w-5 text-muted-foreground transition-transform ${expandedBankId === item.id ? "rotate-90" : ""}`} />
+                      <ChevronRightIcon className={`h-5 w-5 ${expandedBankId === item.id ? 'text-primary' : 'text-muted-foreground'}`} />
                     </div>
 
                   </button>

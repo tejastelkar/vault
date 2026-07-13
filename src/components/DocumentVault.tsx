@@ -355,7 +355,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
         ) : documents.length === 0 ? (
           <EmptyState type="documents" onCta={() => setIsAddOpen(true)} />
         ) : (
-          <motion.div layout className="flex flex-col gap-8 pb-12">
+          <motion.div layout="position" className="flex flex-col gap-8 pb-12">
             <AnimatePresence mode="popLayout">
             {Object.entries(
               documents.reduce((acc, doc) => {
@@ -365,7 +365,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                 return acc;
               }, {} as Record<string, VaultDocument[]>)
             ).sort(([a], [b]) => a.localeCompare(b)).map(([category, categoryDocs]) => (
-              <motion.div layout key={category} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div layout="position" key={category} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <div className="flex items-center justify-between mb-2 px-1">
                   <p className="text-[13px] font-semibold text-muted-foreground uppercase tracking-[0.06em]">
                     {category}
@@ -404,7 +404,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                   { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedId === doc.id) setExpandedId(null); scheduleDelete(doc); } },
                 ]}>{(bindings) => <motion.div
                     {...bindings}
-                    layout
+                    layout="position"
                     id={`item-${doc.id}`}
                     key={doc.id}
                     initial={{ opacity: 0 }}
@@ -435,7 +435,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                       <div className="w-10 h-10 bg-gradient-to-b from-blue-400 to-primary rounded-xl flex items-center justify-center shrink-0 shadow-sm">
                         <FileIcon strokeWidth={2.5} className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-[18px] text-foreground font-semibold truncate tracking-tight">{doc.title}</span>
+                      <span className={`text-[18px] font-semibold truncate tracking-tight ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{doc.title}</span>
                     </div>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-muted' : 'group-hover:bg-muted'}`}>
                       {isExpanded ? <ChevronDownIcon strokeWidth={2.5} className="w-5 h-5 text-foreground" /> : <ChevronRightIcon strokeWidth={2.5} className="w-5 h-5 text-muted-foreground" />}

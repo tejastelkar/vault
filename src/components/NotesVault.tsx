@@ -294,7 +294,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
         ) : items.length === 0 ? (
           <EmptyState type="notes" onCta={() => setIsAddOpen(true)} />
         ) : (
-          <motion.div layout className="flex flex-col gap-8 pb-12">
+          <motion.div layout="position" className="flex flex-col gap-8 pb-12">
             <AnimatePresence mode="popLayout">
             {Object.entries(
               items.reduce((acc, item) => {
@@ -304,7 +304,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
                 return acc;
               }, {} as Record<string, DecryptedNote[]>)
             ).sort(([a], [b]) => a.localeCompare(b)).map(([category, categoryItems]) => (
-              <motion.div layout key={category} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div layout="position" key={category} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <div className="flex items-center justify-between mb-2 px-1">
                   <p className="text-[13px] font-semibold text-muted-foreground uppercase tracking-[0.06em]">
                     {category}
@@ -343,7 +343,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
                   { id: "delete", label: "Delete", destructive: true, onSelect: () => { if (expandedId === item.id) setExpandedId(null); scheduleDelete(item); } },
                 ]}>{(bindings) => <motion.div
                     {...bindings}
-                    layout
+                    layout="position"
                     id={`item-${item.id}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -374,7 +374,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
                       <div className="w-10 h-10 bg-gradient-to-b from-orange-500 to-destructive rounded-xl flex items-center justify-center shrink-0 shadow-sm">
                         <FileIcon strokeWidth={2.5} className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-[18px] text-foreground font-semibold truncate tracking-tight">{item.title}</span>
+                      <span className={`text-[18px] font-semibold truncate tracking-tight ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{item.title}</span>
                     </div>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-muted' : 'group-hover:bg-muted'}`}>
                       {isExpanded ? <ChevronDownIcon strokeWidth={2.5} className="w-5 h-5 text-foreground" /> : <ChevronRightIcon strokeWidth={2.5} className="w-5 h-5 text-muted-foreground" />}
