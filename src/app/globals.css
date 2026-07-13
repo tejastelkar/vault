@@ -94,7 +94,6 @@
 .apple-selection-toolbar button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
 .wallet-page { width: 100%; max-width: 1080px; margin-inline: auto; }
 .wallet-page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.wallet-page-heading { display: block; }
 .wallet-page-eyebrow { color: var(--muted-foreground); font-size: 12px; font-weight: 650; }
 .wallet-page-title { font-size: 24px; font-weight: 720; letter-spacing: -.035em; }
 .wallet-page-actions { display: flex; align-items: center; gap: 8px; }
@@ -108,6 +107,7 @@
 .vault-section-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; margin-left: auto; }
 .vault-section-overflow { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 999px; color: var(--muted-foreground); }
 .vault-section-primary-action { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; padding: 0 16px; background: var(--system-blue); color: white; font-size: 14px; font-weight: 650; }
+.vault-section-primary-action:focus-visible { outline: 3px solid color-mix(in srgb, var(--system-blue) 55%, white); outline-offset: 2px; }
 .wallet-page-actions button:focus-visible,
 .wallet-segmented button:focus-visible,
 .wallet-details button:focus-visible,
@@ -174,6 +174,13 @@
 .apple-bank-row:active { background: color-mix(in srgb, var(--elevated-bg) 90%, var(--system-blue)) !important; }
 .apple-bank-detail { background: var(--elevated-bg); border: 1px solid color-mix(in srgb, var(--separator) 60%, transparent); border-radius: 22px; padding: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.07); }
 .apple-bank-detail-backdrop { display: none; }
+@media (min-width: 640px) {
+  .vault-section-toolbar { margin-bottom: 32px; }
+  .wallet-page-header { margin-bottom: 20px; }
+}
+@media (min-width: 768px) {
+  .wallet-page-heading.vault-section-heading { display: block; }
+}
 @media (max-width: 767px) {
   .wallet-page-header { margin-bottom: 18px; }
   .wallet-page-title { font-size: 22px; }

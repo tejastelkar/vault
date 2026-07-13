@@ -337,7 +337,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
         <div className="vault-section-actions">
           {items.length > 0 && (
             <DropdownMenu>
-            <DropdownMenuTrigger className="vault-section-overflow rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
+            <DropdownMenuTrigger aria-label="More actions" className="vault-section-overflow rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
               <MoreHorizontalIcon className="w-5 h-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-xl">
