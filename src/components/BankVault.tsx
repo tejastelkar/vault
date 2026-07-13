@@ -492,6 +492,14 @@ export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }:
                     aria-expanded={expandedBankId === item.id}
                     aria-controls={`bank-detail-${item.id}`}
                   >
+                    {expandedBankId === item.id && !isSelectionMode && (
+                      <motion.div
+                        layoutId="bank-active-bg"
+                        className="absolute inset-0 bg-primary/10"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                        style={{ zIndex: 0 }}
+                      />
+                    )}
                     {isSelectionMode && (
                       <div className="absolute top-4 left-4 z-20">
                         {selectedIds.has(item.id)
@@ -500,7 +508,7 @@ export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }:
                       </div>
                     )}
 
-                    <div className={`flex justify-between items-center ${isSelectionMode ? 'ml-8' : ''}`}>
+                    <div className={`relative z-10 flex justify-between items-center ${isSelectionMode ? 'ml-8' : ''}`}>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <BuildingIcon strokeWidth={2} className="w-5 h-5 text-primary" />
