@@ -373,56 +373,80 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
     const href = domain ? (/^https?:\/\//i.test(domain) ? domain : `https://${domain}`) : null;
 
     const DetailValue = ({ label, value, copyLabel = label, concealed = false }: { label: string; value: string; copyLabel?: string; concealed?: boolean }) => (
-      <div className="apple-password-detail-row">
-        <span className="type-caption text-muted-foreground">{label}</span>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`flex-1 min-w-0 truncate text-[15px] ${concealed ? "font-mono" : ""}`}>
+      <div className="flex items-center justify-between py-3.5 px-5 bg-background md:bg-card">
+        <div className="flex flex-col gap-0.5 min-w-0 pr-4">
+          <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
+          <span className={`text-[16px] font-semibold text-foreground truncate ${concealed ? "font-mono tracking-wide" : ""}`}>
             {value}
           </span>
-          <button type="button" onClick={() => copyToClipboard(value, copyLabel)} className="apple-password-icon-button" aria-label={`Copy ${label.toLowerCase()}`}>
-            <CopyIcon className="w-4 h-4" />
-          </button>
         </div>
+        <button type="button" onClick={() => copyToClipboard(value, copyLabel)} className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-secondary/80 text-primary hover:scale-105 active:scale-95 transition-all" aria-label={`Copy ${label.toLowerCase()}`}>
+          <CopyIcon className="w-[18px] h-[18px]" />
+        </button>
       </div>
     );
 
     return (
       <>
-        <button className="apple-password-detail-backdrop md:!block md:!fixed md:!inset-0 md:!z-[99] md:!bg-black/40 md:backdrop-blur-sm" aria-label="Close password details" onClick={() => setExpandedId(null)} />
+        <motion.button
+          type="button"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[99] bg-black/40 backdrop-blur-sm w-full h-full cursor-default"
+          aria-label="Close password details"
+          onClick={() => setExpandedId(null)}
+        />
         <motion.aside
-          data-password-detail
           role="dialog"
           aria-modal="true"
           aria-labelledby="password-detail-title"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 12 }}
-          className="apple-password-detail apple-mobile-detail-sheet md:!fixed md:!top-0 md:!bottom-0 md:!left-0 md:!right-0 md:!m-auto md:!w-full md:!max-w-[440px] md:!h-fit md:!max-h-[85vh] md:!z-[100] md:!shadow-2xl"
+          initial={{ opacity: 0, y: "100%", scale: 1 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: "100%", scale: 1 }}
+          transition={{ type: "spring", damping: 25, stiffness: 200 }}
+          className="fixed z-[100] inset-x-0 bottom-0 md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-[420px] bg-secondary md:bg-popover/95 md:backdrop-blur-2xl rounded-t-[32px] md:rounded-[28px] md:border border-border/50 shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden"
         >
-          <div className="flex items-start gap-3 px-5 py-4 border-b border-border/70">
-            <div className="w-11 h-11 rounded-[12px] bg-secondary flex items-center justify-center text-lg font-bold text-foreground/60 shrink-0">{item.title.charAt(0).toUpperCase()}</div>
-            <div className="flex-1 min-w-0">
-              <h3 id="password-detail-title" className="text-[20px] font-semibold tracking-tight truncate">{item.title}</h3>
-              <p className="text-[13px] text-muted-foreground mt-0.5">{item.category}</p>
-            </div>
-            <button type="button" onClick={(e) => handleToggleFavorite(item.id, item.is_favorite, e)} className="apple-password-icon-button shrink-0" aria-label="Toggle favorite">
-              <StarIcon className={`w-4 h-4 ${item.is_favorite ? "fill-primary text-primary" : ""}`} />
-            </button>
-            <button type="button" onClick={() => setExpandedId(null)} className="apple-password-icon-button shrink-0" aria-label="Close password details"><XIcon className="w-4 h-4" /></button>
+          {/* Mobile drag indicator */}
+          <div className="w-full flex justify-center pt-4 pb-2 md:hidden">
+            <div className="w-12 h-1.5 rounded-full bg-border" />
           </div>
 
-          <div className="px-5 py-4">
-            <div className="flex items-center gap-2 mb-4">
-              <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${strength.bg}/10 ${strength.color}`}>{strength.label}</span>
-              {dupeIds.has(item.id) && <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-500">Reused</span>}
+          <div className="flex items-start gap-4 px-6 pt-2 md:pt-6 pb-6">
+            <div className="w-14 h-14 rounded-[18px] bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20 flex items-center justify-center text-2xl font-bold text-primary shrink-0 shadow-sm">
+              {item.title.charAt(0).toUpperCase()}
             </div>
-            <div className="apple-password-detail-group">
+            <div className="flex-1 min-w-0 pt-0.5">
+              <h3 id="password-detail-title" className="text-[22px] font-bold tracking-tight truncate text-foreground">{item.title}</h3>
+              <p className="text-[14px] font-medium text-muted-foreground mt-0.5 truncate">{item.category}</p>
+              
+              <div className="flex items-center gap-2 mt-2.5">
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${strength.bg}/15 ${strength.color}`}>{strength.label}</span>
+                {dupeIds.has(item.id) && <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-500/15 text-red-500">Reused</span>}
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <button type="button" onClick={(e) => handleToggleFavorite(item.id, item.is_favorite, e)} className="w-9 h-9 rounded-full bg-background md:bg-secondary flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-muted-foreground" aria-label="Toggle favorite">
+                <StarIcon className={`w-4 h-4 ${item.is_favorite ? "fill-primary text-primary" : ""}`} />
+              </button>
+              <button type="button" onClick={() => setExpandedId(null)} className="w-9 h-9 rounded-full bg-background md:bg-secondary flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-muted-foreground hidden md:flex" aria-label="Close password details">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="px-6 pb-8 overflow-y-auto">
+            <div className="flex flex-col gap-[1px] bg-border/50 rounded-[24px] overflow-hidden mb-6 shadow-sm ring-1 ring-border/50">
               {parsed.username && <DetailValue label="Username" value={parsed.username} />}
               {password && <DetailValue label="Password" value={password} concealed />}
-
               {parsed.notes && <DetailValue label="Notes" value={parsed.notes} copyLabel="Notes" />}
             </div>
-            <button type="button" onClick={(e) => handleDeleteItem(item.id, e)} className="w-full mt-5 min-h-11 rounded-xl bg-destructive/10 text-destructive text-[15px] font-semibold hover:bg-destructive/15 transition-colors">Delete Password</button>
+            
+            <button type="button" onClick={(e) => handleDeleteItem(item.id, e)} className="w-full min-h-[56px] rounded-[20px] bg-destructive/10 text-destructive text-[16px] font-bold hover:bg-destructive/15 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              <TrashIcon className="w-5 h-5" />
+              Delete Password
+            </button>
           </div>
         </motion.aside>
       </>
