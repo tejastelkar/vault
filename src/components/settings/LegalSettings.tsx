@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, FileTextIcon, ShieldCheckIcon, ScaleIcon } from "lucide-react";
 
 export function LegalSettings() {
   const [openSection, setOpenSection] = useState<string | null>("privacy");
@@ -9,46 +9,41 @@ export function LegalSettings() {
   };
 
   return (
-    <div className="settings-pane fade-in flex flex-col h-full overflow-y-auto">
-      <div className="mb-6 flex-shrink-0">
-        <h2 className="text-[20px] font-bold tracking-tight text-foreground mb-1">Legal & Privacy</h2>
-        <p className="text-[14px] text-muted-foreground">
-          Policies regarding your data, privacy, and our terms of service.
-        </p>
-      </div>
+    <section className="settings-detail-section" aria-labelledby="settings-legal-title">
+      <header>
+        <p className="type-group-label">Telkar Vault</p>
+        <h2 id="settings-legal-title">Legal & Privacy</h2>
+        <p>Policies regarding your data, privacy, and our terms of service.</p>
+      </header>
 
-      <div className="flex-1 min-h-0 space-y-4">
+      <div className="apple-grouped-list">
         {/* Privacy Policy */}
-        <div className="border border-border/50 rounded-xl overflow-hidden bg-background shadow-sm">
+        <div className="flex flex-col">
           <button
+            type="button"
             onClick={() => toggleSection("privacy")}
-            className="w-full flex items-center justify-between p-4 bg-secondary/20 hover:bg-secondary/40 transition-colors text-left"
+            className="settings-group settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
           >
-            <span className="font-semibold text-foreground">Privacy Policy & DPDP/GDPR Compliance</span>
-            <ChevronDownIcon
-              className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${
-                openSection === "privacy" ? "rotate-180" : ""
-              }`}
-            />
+            <span className="settings-row-icon"><ShieldCheckIcon aria-hidden="true" /></span>
+            <span>
+              <strong>Privacy Policy</strong>
+              <small>DPDP, GDPR & CCPA Compliance</small>
+            </span>
+            <div className="flex justify-end">
+              <ChevronDownIcon className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${openSection === "privacy" ? "rotate-180" : ""}`} />
+            </div>
           </button>
+          
           {openSection === "privacy" && (
-            <div className="p-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/50">
-              <p>
-                <strong>Effective Date:</strong> January 1, 2026
-              </p>
-              <p>
-                At Telkar Vault, your privacy is our highest priority. We are committed to complying with global and regional data protection laws, including the <strong>India Digital Personal Data Protection (DPDP) Act, 2023</strong>, the <strong>General Data Protection Regulation (GDPR)</strong>, and the <strong>California Consumer Privacy Act (CCPA)</strong>.
-              </p>
+            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/40 bg-secondary/10">
+              <p><strong>Effective Date:</strong> January 1, 2026</p>
+              <p>At Telkar Vault, your privacy is our highest priority. We are committed to complying with global and regional data protection laws, including the <strong>India Digital Personal Data Protection (DPDP) Act, 2023</strong>, the <strong>General Data Protection Regulation (GDPR)</strong>, and the <strong>California Consumer Privacy Act (CCPA)</strong>.</p>
               
               <h3 className="text-foreground font-semibold text-[15px] mt-4 mb-2">Zero-Knowledge Architecture</h3>
-              <p>
-                Telkar Vault operates on a strict zero-knowledge architecture. This means your vault data (passwords, secure notes, bank details) is encrypted and decrypted locally on your device using your Master Password. We never receive, store, or have the ability to view your Master Password or the unencrypted contents of your vault.
-              </p>
+              <p>Telkar Vault operates on a strict zero-knowledge architecture. This means your vault data (passwords, secure notes, bank details) is encrypted and decrypted locally on your device using your Master Password. We never receive, store, or have the ability to view your Master Password or the unencrypted contents of your vault.</p>
 
               <h3 className="text-foreground font-semibold text-[15px] mt-4 mb-2">Data We Collect</h3>
-              <p>
-                Due to our zero-knowledge architecture, the personal data we process is strictly limited to what is necessary to provide the service:
-              </p>
+              <p>Due to our zero-knowledge architecture, the personal data we process is strictly limited to what is necessary to provide the service:</p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Your email address (for account identification and communication).</li>
                 <li>Encrypted vault blobs (which we cannot decrypt or read).</li>
@@ -72,68 +67,62 @@ export function LegalSettings() {
         </div>
 
         {/* Terms of Service */}
-        <div className="border border-border/50 rounded-xl overflow-hidden bg-background shadow-sm">
+        <div className="flex flex-col">
           <button
+            type="button"
             onClick={() => toggleSection("terms")}
-            className="w-full flex items-center justify-between p-4 bg-secondary/20 hover:bg-secondary/40 transition-colors text-left"
+            className="settings-group settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
           >
-            <span className="font-semibold text-foreground">Terms of Service</span>
-            <ChevronDownIcon
-              className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${
-                openSection === "terms" ? "rotate-180" : ""
-              }`}
-            />
+            <span className="settings-row-icon"><FileTextIcon aria-hidden="true" /></span>
+            <span>
+              <strong>Terms of Service</strong>
+              <small>Usage rules and limitations</small>
+            </span>
+            <div className="flex justify-end">
+              <ChevronDownIcon className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${openSection === "terms" ? "rotate-180" : ""}`} />
+            </div>
           </button>
+          
           {openSection === "terms" && (
-            <div className="p-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/50">
-              <p>
-                <strong>Effective Date:</strong> January 1, 2026
-              </p>
-              <p>
-                Welcome to Telkar Vault. By using our application, you agree to these Terms of Service. Please read them carefully.
-              </p>
+            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/40 bg-secondary/10">
+              <p><strong>Effective Date:</strong> January 1, 2026</p>
+              <p>Welcome to Telkar Vault. By using our application, you agree to these Terms of Service. Please read them carefully.</p>
               
               <h3 className="text-foreground font-semibold text-[15px] mt-4 mb-2">1. Use of Service</h3>
-              <p>
-                You agree to use Telkar Vault only for lawful purposes. You are responsible for maintaining the confidentiality of your Master Password. Because we use a zero-knowledge architecture, <strong>we cannot recover your data if you lose your Master Password.</strong>
-              </p>
+              <p>You agree to use Telkar Vault only for lawful purposes. You are responsible for maintaining the confidentiality of your Master Password. Because we use a zero-knowledge architecture, <strong>we cannot recover your data if you lose your Master Password.</strong></p>
 
               <h3 className="text-foreground font-semibold text-[15px] mt-4 mb-2">2. Acceptable Use</h3>
-              <p>
-                You must not use our service to store illegal content, distribute malware, or engage in activities that compromise the security and availability of the service.
-              </p>
+              <p>You must not use our service to store illegal content, distribute malware, or engage in activities that compromise the security and availability of the service.</p>
 
               <h3 className="text-foreground font-semibold text-[15px] mt-4 mb-2">3. Limitation of Liability</h3>
-              <p>
-                Telkar Vault is provided "as is" without warranties of any kind. We are not liable for data loss resulting from forgotten Master Passwords, compromised devices, or user error.
-              </p>
+              <p>Telkar Vault is provided "as is" without warranties of any kind. We are not liable for data loss resulting from forgotten Master Passwords, compromised devices, or user error.</p>
 
               <h3 className="text-foreground font-semibold text-[15px] mt-4 mb-2">4. Termination</h3>
-              <p>
-                We reserve the right to suspend or terminate your account if you violate these Terms. You may terminate your account at any time by using the "Delete Account" feature.
-              </p>
+              <p>We reserve the right to suspend or terminate your account if you violate these Terms. You may terminate your account at any time by using the "Delete Account" feature.</p>
             </div>
           )}
         </div>
 
         {/* Security & Architecture */}
-        <div className="border border-border/50 rounded-xl overflow-hidden bg-background shadow-sm">
+        <div className="flex flex-col">
           <button
+            type="button"
             onClick={() => toggleSection("security")}
-            className="w-full flex items-center justify-between p-4 bg-secondary/20 hover:bg-secondary/40 transition-colors text-left"
+            className="settings-group settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
           >
-            <span className="font-semibold text-foreground">Security Architecture & Encryption</span>
-            <ChevronDownIcon
-              className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${
-                openSection === "security" ? "rotate-180" : ""
-              }`}
-            />
+            <span className="settings-row-icon"><ScaleIcon aria-hidden="true" /></span>
+            <span>
+              <strong>Security Architecture</strong>
+              <small>Encryption and technical standards</small>
+            </span>
+            <div className="flex justify-end">
+              <ChevronDownIcon className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${openSection === "security" ? "rotate-180" : ""}`} />
+            </div>
           </button>
+          
           {openSection === "security" && (
-            <div className="p-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/50">
-              <p>
-                Our security model ensures that you are the only one who holds the keys to your data.
-              </p>
+            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/40 bg-secondary/10">
+              <p>Our security model ensures that you are the only one who holds the keys to your data.</p>
               
               <ul className="list-disc pl-5 space-y-2">
                 <li><strong>Client-Side Encryption:</strong> All encryption and decryption happen locally on your device.</li>
@@ -145,6 +134,6 @@ export function LegalSettings() {
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
