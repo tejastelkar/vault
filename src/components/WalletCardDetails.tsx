@@ -40,13 +40,15 @@ export function WalletCardDetails(props: WalletCardDetailsProps) {
         <CardNetworkLogo network={getCardNetwork(props.number)} className="text-foreground" />
         {props.onClose && <button type="button" onClick={props.onClose} aria-label="Close card details"><XIcon /></button>}
       </header>
-      <dl className="wallet-details-list">
-        <div><dt>Card number</dt><dd><span>{props.number.replace(/(\d{4})/g, "$1 ").trim()}</span><button type="button" onClick={() => copy(props.number, "Card number")}><CopyIcon />{copied === "Card number" ? "Copied" : "Copy"}</button></dd></div>
-        <div className="wallet-details-pair"><div><dt>Cardholder</dt><dd>{props.name || "Card holder"}</dd></div><div><dt>Expires</dt><dd>{props.expiry || "••/••"}</dd></div></div>
-      </dl>
-      {secureRows.length > 0 && <div className="wallet-secure"><button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? <EyeOffIcon /> : <EyeIcon />}{revealed ? "Hide secure details" : "Show secure details"}</button>{secureRows.map(([label, value]) => <div key={label}><span>{label}</span><code>{revealed ? value : "••••"}</code><button type="button" onClick={() => copy(value, label)} aria-label={`Copy ${label}`}>{copied === label ? <CheckIcon /> : <CopyIcon />}</button></div>)}</div>}
-      {props.extraDetails && <div className="wallet-extra"><p className="type-group-label">Additional information</p><p>{props.extraDetails}</p></div>}
-      <button type="button" className="wallet-delete" onClick={props.onDelete}><TrashIcon />Delete card</button>
+      <div className="wallet-details-body">
+        <dl className="wallet-details-list">
+          <div><dt>Card number</dt><dd><span>{props.number.replace(/(\d{4})/g, "$1 ").trim()}</span><button type="button" onClick={() => copy(props.number, "Card number")}><CopyIcon />{copied === "Card number" ? "Copied" : "Copy"}</button></dd></div>
+          <div className="wallet-details-pair"><div><dt>Cardholder</dt><dd>{props.name || "Card holder"}</dd></div><div><dt>Expires</dt><dd>{props.expiry || "••/••"}</dd></div></div>
+        </dl>
+        {secureRows.length > 0 && <div className="wallet-secure"><button type="button" onClick={() => setRevealed((value) => !value)}>{revealed ? <EyeOffIcon /> : <EyeIcon />}{revealed ? "Hide secure details" : "Show secure details"}</button>{secureRows.map(([label, value]) => <div key={label}><span>{label}</span><code>{revealed ? value : "••••"}</code><button type="button" onClick={() => copy(value, label)} aria-label={`Copy ${label}`}>{copied === label ? <CheckIcon /> : <CopyIcon />}</button></div>)}</div>}
+        {props.extraDetails && <div className="wallet-extra"><p className="type-group-label">Additional information</p><p>{props.extraDetails}</p></div>}
+        <button type="button" className="wallet-delete" onClick={props.onDelete}><TrashIcon />Delete card</button>
+      </div>
     </section>
   );
 }

@@ -182,7 +182,11 @@
   .wallet-card-top svg { max-width: 78px; height: 28px; }
   .wallet-card-number { font-size: clamp(15px, 5vw, 21px); letter-spacing: .025em; }
   .wallet-card-bottom strong { font-size: 12px; }
-  .wallet-mobile-sheet { --tw-translate-x: 0px !important; --tw-translate-y: 0px !important; top: auto !important; bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px)); left: 0 !important; width: 100% !important; max-width: none !important; max-height: min(74dvh, 620px); transform: none !important; overflow-y: auto; border-radius: 28px 28px 0 0 !important; padding: 8px 16px 20px; }
+  .wallet-mobile-sheet { --tw-translate-x: 0px !important; --tw-translate-y: 0px !important; top: auto !important; bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px)); left: 0 !important; display: flex; width: 100% !important; max-width: none !important; max-height: min(74dvh, 620px); flex-direction: column; transform: none !important; overflow: hidden; border-radius: 28px 28px 0 0 !important; padding: 30px 16px 0; }
+  .wallet-mobile-sheet::before { position: absolute; z-index: 2; top: 8px; left: 50%; width: 36px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--muted-foreground) 38%, transparent); content: ""; transform: translateX(-50%); }
+  .wallet-mobile-sheet .wallet-details { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; overflow: hidden; padding: 0; }
+  .wallet-mobile-sheet .wallet-details-header { flex: 0 0 auto; padding: 0 4px 18px 6px; }
+  .wallet-mobile-sheet .wallet-details-body { min-height: 0; flex: 1 1 auto; overflow-x: hidden; overflow-y: auto; padding: 0 6px calc(20px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 }
 @media (min-width: 768px) {
   .wallet-workspace { grid-template-columns: minmax(0, 640px) minmax(300px, 360px); }
@@ -202,7 +206,7 @@
   .apple-selection-toolbar { display: flex; }
   .apple-bank-detail-backdrop { display: block; position: fixed; inset: 0; z-index: 69; background: rgba(0,0,0,.28); backdrop-filter: blur(3px); }
   .apple-bank-detail { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; max-height: min(82dvh, 680px); overflow-y: auto; border-radius: 28px 28px 0 0; padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,.2); }
-  [role="dialog"].wallet-mobile-sheet { --tw-translate-x: 0px !important; --tw-translate-y: 0px !important; top: auto !important; bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px)) !important; left: 0 !important; width: 100% !important; max-width: none !important; max-height: min(74dvh, 620px); transform: none !important; overflow-y: auto; border-radius: 28px 28px 0 0 !important; padding: 8px 16px 20px; }
+  [role="dialog"].wallet-mobile-sheet { --tw-translate-x: 0px !important; --tw-translate-y: 0px !important; top: auto !important; bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px)) !important; left: 0 !important; display: flex; width: 100% !important; max-width: none !important; max-height: min(74dvh, 620px); flex-direction: column; transform: none !important; overflow: hidden; border-radius: 28px 28px 0 0 !important; padding: 30px 16px 0; }
 }
 
 /* ─── Dark Mode — pure iOS/macOS dark system palette ─────────── */
@@ -303,7 +307,7 @@ body {
 [data-slot="dialog-content"].responsive-form-sheet > form,
 [data-slot="dialog-content"].responsive-form-sheet > [data-slot="dialog-header"] + div,
 [data-slot="dialog-content"].responsive-import-sheet .magic-import-scroll,
-.wallet-mobile-sheet,
+.wallet-mobile-sheet .wallet-details-body,
 .vault-command-surface * {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -312,7 +316,7 @@ body {
 [data-slot="dialog-content"].responsive-form-sheet > form::-webkit-scrollbar,
 [data-slot="dialog-content"].responsive-form-sheet > [data-slot="dialog-header"] + div::-webkit-scrollbar,
 [data-slot="dialog-content"].responsive-import-sheet .magic-import-scroll::-webkit-scrollbar,
-.wallet-mobile-sheet::-webkit-scrollbar,
+.wallet-mobile-sheet .wallet-details-body::-webkit-scrollbar,
 .vault-command-surface *::-webkit-scrollbar {
   width: 0;
   height: 0;
