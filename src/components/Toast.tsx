@@ -1,87 +1,114 @@
 "use client";
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { CheckIcon, XCircleIcon, InfoIcon, AlertTriangleIcon } from "lucide-react";
 
-type ToastType = "success" | "error" | "info" | "warning";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AlertTriangleIcon, CheckIcon, InfoIcon, XCircleIcon, XIcon } from "lucide-react";
 
-interface Toast {
-  id: string;
+export type ToastType = "success" | "error" | "info" | "warning";
+
+export interface ToastOptions {
   message: string;
-  type: ToastType;
+  type?: ToastType;
+  durationMs?: number | null;
+  actionLabel?: string;
+  onAction?: () => void | Promise<void>;
+}
+
+export interface ToastHandle {
+  id: string;
+  dismiss: () => void;
+}
+
+interface ToastRecord extends Required<Pick<ToastOptions, "message" | "type">> {
+  id: string;
+  durationMs: number | null;
+  actionLabel?: string;
+  onAction?: () => void | Promise<void>;
 }
 
 interface ToastContextValue {
-  toast: (message: string, type?: ToastType) => void;
+  toast: (messageOrOptions: string | ToastOptions, legacyType?: ToastType) => ToastHandle;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
-
-const ICONS = {
-  success: CheckIcon,
-  error:   XCircleIcon,
-  info:    InfoIcon,
-  warning: AlertTriangleIcon,
-};
+const ICONS = { success: CheckIcon, error: XCircleIcon, info: InfoIcon, warning: AlertTriangleIcon };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toasts, setToasts] = useState<ToastRecord[]>([]);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const prefersReducedMotion = useReducedMotion();
 
   const dismiss = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-    if (timers.current.has(id)) {
-      clearTimeout(timers.current.get(id)!);
-      timers.current.delete(id);
-    }
+    setToasts((current) => current.filter((item) => item.id !== id));
+    const timer = timers.current.get(id);
+    if (timer) clearTimeout(timer);
+    timers.current.delete(id);
   }, []);
 
-  const toast = useCallback((message: string, type: ToastType = "success") => {
-    const id = Math.random().toString(36).slice(2);
-    setToasts(prev => [...prev.slice(-2), { id, message, type }]);
-    const timer = setTimeout(() => dismiss(id), 2800);
-    timers.current.set(id, timer);
+  const toast = useCallback((messageOrOptions: string | ToastOptions, legacyType: ToastType = "success"): ToastHandle => {
+    const options: ToastOptions = typeof messageOrOptions === "string"
+      ? { message: messageOrOptions, type: legacyType }
+      : messageOrOptions;
+    const id = crypto.randomUUID();
+    const record: ToastRecord = {
+      id,
+      message: options.message,
+      type: options.type ?? "success",
+      durationMs: options.durationMs === undefined ? 3200 : options.durationMs,
+      actionLabel: options.actionLabel,
+      onAction: options.onAction,
+    };
+    setToasts((current) => [...current.slice(-2), record]);
+    if (record.durationMs !== null) {
+      timers.current.set(id, setTimeout(() => dismiss(id), record.durationMs));
+    }
+    return { id, dismiss: () => dismiss(id) };
   }, [dismiss]);
 
   useEffect(() => {
-    const ref = timers.current;
-    return () => { ref.forEach(t => clearTimeout(t)); };
+    const activeTimers = timers.current;
+    return () => activeTimers.forEach((timer) => clearTimeout(timer));
   }, []);
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      {/* iOS-style banners — top center */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none w-full max-w-sm px-4">
+      <div className="vault-toast-region" aria-label="Notifications">
         <AnimatePresence mode="popLayout">
-          {toasts.map(t => {
-            const Icon = ICONS[t.type];
+          {toasts.map((item) => {
+            const Icon = ICONS[item.type];
+            const hasAction = Boolean(item.actionLabel && item.onAction);
             return (
               <motion.div
-                key={t.id}
-                layout
-                initial={{ opacity: 0, y: -48, scale: 0.92 }}
-                animate={{ opacity: 1, y: 0,   scale: 1    }}
-                exit={{    opacity: 0, y: -24,  scale: 0.94 }}
-                transition={{ type: "spring", bounce: 0.25, duration: 0.45 }}
-                onClick={() => dismiss(t.id)}
-                className="apple-material pointer-events-auto w-full flex items-center gap-3 px-4 py-3 rounded-[18px] cursor-pointer"
-                style={{
-                  background: "rgba(30, 30, 30, 0.88)",
-                  backdropFilter: "saturate(180%) blur(24px)",
-                  WebkitBackdropFilter: "saturate(180%) blur(24px)",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.2)",
-                }}
+                key={item.id}
+                layout={!prefersReducedMotion}
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -22, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.97 }}
+                transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", bounce: 0.18, duration: 0.36 }}
+                className="vault-toast system-motion"
+                role={item.type === "error" ? "alert" : "status"}
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                  t.type === "success" ? "bg-[#30D158]" :
-                  t.type === "error"   ? "bg-[#FF453A]" :
-                  t.type === "warning" ? "bg-[#FFD60A]" :
-                  "bg-[#0A84FF]"
-                }`}>
-                  <Icon className="w-3.5 h-3.5 text-black" strokeWidth={2.5} />
-                </div>
-                <span className="text-[14px] font-medium text-white flex-1 text-left leading-snug">{t.message}</span>
+                <span className={`vault-toast-icon is-${item.type}`}><Icon aria-hidden="true" /></span>
+                <span className="vault-toast-message">{item.message}</span>
+                {hasAction && (
+                  <button
+                    type="button"
+                    className="vault-toast-action system-interactive"
+                    onClick={async () => {
+                      await item.onAction?.();
+                      dismiss(item.id);
+                    }}
+                  >
+                    {item.actionLabel}
+                  </button>
+                )}
+                <button type="button" className="vault-toast-close system-interactive" onClick={() => dismiss(item.id)} aria-label="Dismiss notification">
+                  <XIcon aria-hidden="true" />
+                </button>
+                {item.durationMs !== null && !prefersReducedMotion && (
+                  <span className="vault-toast-deadline" style={{ animationDuration: `${item.durationMs}ms` }} />
+                )}
               </motion.div>
             );
           })}
@@ -92,7 +119,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error("useToast must be used within ToastProvider");
-  return ctx.toast;
+  const context = useContext(ToastContext);
+  if (!context) throw new Error("useToast must be used within ToastProvider");
+  return context.toast;
 }
