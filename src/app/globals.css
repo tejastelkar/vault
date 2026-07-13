@@ -426,9 +426,16 @@ body {
   [data-slot="dialog-content"].responsive-form-sheet,
   [data-slot="dialog-content"].responsive-import-sheet,
   [role="dialog"].wallet-mobile-sheet {
-    transform: none !important;
     transition: none !important;
     animation: none !important;
+  }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  [data-slot="dialog-content"].responsive-form-sheet,
+  [data-slot="dialog-content"].responsive-import-sheet,
+  [role="dialog"].wallet-mobile-sheet {
+    transform: none !important;
     will-change: auto;
   }
 }
