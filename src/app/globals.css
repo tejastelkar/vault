@@ -319,7 +319,7 @@
 .settings-backup-hero > span svg { width: 24px; height: 24px; }
 .settings-backup-hero h3 { font-size: 17px; font-weight: 680; }
 .settings-backup-hero p { margin-top: 4px; color: var(--muted-foreground); font-size: 13px; line-height: 1.45; }
-.settings-backup-facts { display: grid; grid-template-columns: repeat(2,1fr); gap: 0; margin-top: 14px; }
+.settings-backup-facts { display: grid; grid-template-columns: repeat(2,1fr); gap: 0; }
 .settings-backup-facts > div { display: flex; min-height: 92px; align-items: flex-start; gap: 11px; padding: 18px; }
 .settings-backup-facts > div + div { border-left: 1px solid var(--separator); }
 .settings-backup-facts svg { width: 20px; height: 20px; flex: 0 0 auto; color: var(--primary); }
