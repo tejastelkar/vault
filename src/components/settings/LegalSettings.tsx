@@ -10,7 +10,7 @@ export function LegalSettings() {
   const [activePolicy, setActivePolicy] = useState<PolicyType>(null);
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="grid overflow-hidden relative">
       <AnimatePresence initial={false}>
         {activePolicy === "privacy" && (
           <motion.section 
@@ -19,7 +19,7 @@ export function LegalSettings() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 1 }}
             transition={transition}
-            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-10"
+            className="settings-detail-section [grid-area:1/1] bg-background z-10 pb-10"
           >
             <header className="flex items-center gap-2 mb-6">
               <button 
@@ -78,7 +78,7 @@ export function LegalSettings() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 1 }}
             transition={transition}
-            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-10"
+            className="settings-detail-section [grid-area:1/1] bg-background z-10 pb-10"
           >
             <header className="flex items-center gap-2 mb-6">
               <button 
@@ -122,7 +122,7 @@ export function LegalSettings() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 1 }}
             transition={transition}
-            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-10"
+            className="settings-detail-section [grid-area:1/1] bg-background z-10 pb-10"
           >
             <header className="flex items-center gap-2 mb-6">
               <button 
@@ -172,7 +172,7 @@ export function LegalSettings() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "-30%", opacity: 0 }}
             transition={transition}
-            className="settings-detail-section absolute inset-0 w-full h-full overflow-y-auto bg-background z-0"
+            className="settings-detail-section [grid-area:1/1] bg-background z-0 pb-10"
             aria-labelledby="settings-legal-title"
           >
             <header>
