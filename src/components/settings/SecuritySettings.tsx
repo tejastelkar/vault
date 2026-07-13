@@ -78,7 +78,7 @@ export function SecuritySettings({ masterPassword, onLock }: { masterPassword: s
   return (
     <section className="settings-detail-section" aria-labelledby="settings-security-title">
       <header><p className="type-group-label">Security</p><h2 id="settings-security-title">Protect this device</h2><p>Control local unlocking, sensitive clipboard data and account sessions.</p></header>
-      <div className="settings-security-stack">
+      <div className="apple-grouped-list">
         <SettingsControl icon={TimerResetIcon} title="Auto-lock" description="Lock after this device is inactive.">
           <select value={preferences.autoLockMinutes} onChange={(event) => updatePreferences({ autoLockMinutes: Number(event.target.value) as AutoLockMinutes })} aria-label="Auto-lock duration">
             {AUTO_LOCK.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
