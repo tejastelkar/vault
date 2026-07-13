@@ -1,57 +1,52 @@
 "use server";
 
+import { GoogleGenAI } from "@google/genai";
 import type { GlobalImportResult, ImportExtractionResponse } from "@/lib/import/types";
 import { isGlobalImportResult, normalizeImportResult } from "@/lib/import/normalize";
 
 export type { GlobalImportResult } from "@/lib/import/types";
 
 export async function analyzeImageName(base64Image: string, mimeType: string): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GROQ_API_KEY is not set");
+    throw new Error("GEMINI_API_KEY is not set");
   }
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "llama-3.2-90b-vision-preview",
-      messages: [
+  const ai = new GoogleGenAI({ apiKey });
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
         {
-          role: "user",
-          content: [
+          role: 'user',
+          parts: [
+            { text: "Analyze this image and provide a short, descriptive file name (without extension, max 5 words) based on its content. Only return the file name, nothing else. Do not use quotes or backticks." },
             {
-              type: "text",
-              text: "Analyze this image and provide a short, descriptive file name (without extension, max 5 words) based on its content. Only return the file name, nothing else. Do not use quotes or backticks."
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64Image}`
+              inlineData: {
+                data: base64Image,
+                mimeType: mimeType
               }
             }
           ]
         }
       ],
-      temperature: 0.2,
-      max_tokens: 20
-    })
-  });
+      config: {
+        temperature: 0.2,
+      }
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Groq API error:", errorText);
+    if (!response.text) {
+      throw new Error("No text returned from Gemini");
+    }
+
+    const suggestedName = response.text.trim();
+    // Clean up any quotes or extra whitespace
+    return suggestedName.replace(/^["']|["']$/g, '').trim();
+  } catch (error) {
+    console.error("Gemini Vision API error:", error);
     throw new Error("Failed to analyze image");
   }
-
-  const data = await response.json();
-  const suggestedName = data.choices[0].message.content.trim();
-  
-  // Clean up any quotes or extra whitespace
-  return suggestedName.replace(/^["']|["']$/g, '').trim();
 }
 
 export async function enrichPasswordMetadata(title: string): Promise<{ category: string, domain: string | null }> {
