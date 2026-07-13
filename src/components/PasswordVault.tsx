@@ -426,7 +426,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
               </div>
             </div>
             
-            <div className="flex flex-col items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <button type="button" onClick={(e) => handleToggleFavorite(item.id, item.is_favorite, e)} className="w-9 h-9 rounded-full bg-background md:bg-secondary flex items-center justify-center hover:scale-105 active:scale-95 transition-all text-muted-foreground" aria-label="Toggle favorite">
                 <StarIcon className={`w-4 h-4 ${item.is_favorite ? "fill-primary text-primary" : ""}`} />
               </button>
