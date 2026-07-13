@@ -21,7 +21,7 @@ export async function analyzeImageName(base64Image: string, mimeType: string): P
         {
           role: 'user',
           parts: [
-            { text: "Analyze this image and provide a short, descriptive file name (without extension, max 5 words) based on its content. Only return the file name, nothing else. Do not use quotes or backticks." },
+            { text: "Analyze this document/image and provide a short, descriptive file name (without extension, max 5 words) based on its content. Only return the file name, nothing else. Do not use quotes or backticks." },
             {
               inlineData: {
                 data: base64Image,

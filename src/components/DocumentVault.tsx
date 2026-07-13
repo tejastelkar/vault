@@ -139,7 +139,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
     try {
       let finalFileName = selectedFile.name;
 
-      if (useAI && selectedFile.type.startsWith("image/")) {
+      if (useAI && (selectedFile.type.startsWith("image/") || selectedFile.type === "application/pdf")) {
         try {
           const base64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
