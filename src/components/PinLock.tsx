@@ -84,6 +84,38 @@ export function clearPinLock() {
   localStorage.removeItem(PIN_ENCRYPTED_KEY);
 }
 
+export async function verifyPinAndRecoverMaster(pin: string): Promise<string> {
+  const stored = localStorage.getItem(PIN_STORAGE_KEY);
+  const encryptedMaster = localStorage.getItem(PIN_ENCRYPTED_KEY);
+  if (!stored || !encryptedMaster) {
+    throw new Error("PIN unlock is not configured on this device.");
+  }
+
+  try {
+    const parsed = JSON.parse(stored) as { hash?: string; salt?: string };
+    if (!parsed.hash || !parsed.salt) throw new Error("Invalid PIN enrollment.");
+    const inputHash = await hashPin(pin, parsed.salt);
+    if (inputHash !== parsed.hash) {
+      const attempts = Number.parseInt(localStorage.getItem("vault_pin_attempts") || "0", 10) + 1;
+      localStorage.setItem("vault_pin_attempts", String(attempts));
+      if (attempts >= MAX_ATTEMPTS) {
+        clearPinLock();
+        localStorage.removeItem("vault_pin_attempts");
+        throw new Error("Too many wrong attempts. Sign in with your master key.");
+      }
+      const remaining = MAX_ATTEMPTS - attempts;
+      throw new Error(`Wrong PIN. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`);
+    }
+
+    const masterKey = await decryptWithPin(encryptedMaster, pin, parsed.salt);
+    localStorage.removeItem("vault_pin_attempts");
+    return masterKey;
+  } catch (error) {
+    if (error instanceof Error) throw error;
+    throw new Error("Failed to verify PIN. Use your master key.");
+  }
+}
+
 // ── PinLock Component ──────────────────────────────────────────────────────────
 
 interface PinLockProps {
@@ -142,38 +174,19 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
   const verifyPin = async (pin: string) => {
     setChecking(true);
     try {
-      const stored = localStorage.getItem(PIN_STORAGE_KEY);
-      const encryptedMaster = localStorage.getItem(PIN_ENCRYPTED_KEY);
-      if (!stored || !encryptedMaster) { onFallback(); return; }
-
-      const { hash, salt } = JSON.parse(stored);
-      const inputHash = await hashPin(pin, salt);
-
-      if (inputHash === hash) {
-        // Correct PIN — decrypt master key
-        const masterKey = await decryptWithPin(encryptedMaster, pin, salt);
-        localStorage.removeItem("vault_pin_attempts");
-        onUnlock(masterKey);
+      const masterKey = await verifyPinAndRecoverMaster(pin);
+      onUnlock(masterKey);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to verify PIN. Use your master key.";
+      const nextAttempts = Number.parseInt(localStorage.getItem("vault_pin_attempts") || "0", 10);
+      setAttempts(nextAttempts);
+      setError(message);
+      if (!hasPinLock()) {
+        setTimeout(onFallback, 1500);
       } else {
-        // Wrong PIN
-        const newAttempts = attempts + 1;
-        localStorage.setItem("vault_pin_attempts", String(newAttempts));
-        setAttempts(newAttempts);
-
-        if (newAttempts >= MAX_ATTEMPTS) {
-          clearPinLock();
-          localStorage.removeItem("vault_pin_attempts");
-          setError("Too many wrong attempts. Please sign in with your master key.");
-          setTimeout(onFallback, 1500);
-        } else {
-          setError(`Wrong PIN. ${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts === 1 ? "" : "s"} left.`);
-          setShake(true);
-          setTimeout(() => { setShake(false); setDigits([]); }, 500);
-        }
+        setShake(true);
+        setTimeout(() => { setShake(false); setDigits([]); }, 500);
       }
-    } catch {
-      setError("Failed to verify PIN. Please use your master key.");
-      setTimeout(onFallback, 1500);
     } finally {
       setChecking(false);
     }

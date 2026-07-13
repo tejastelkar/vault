@@ -83,6 +83,12 @@ export function hasBiometricsEnabled(): boolean {
   );
 }
 
+export function disableBiometrics(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(BIO_ENCRYPTED_KEY);
+  localStorage.removeItem(BIO_CRED_ID);
+}
+
 export async function enableBiometrics(masterKey: string): Promise<void> {
   if (!isBiometricsSupported()) throw new Error("Biometrics not supported on this device/browser.");
 
