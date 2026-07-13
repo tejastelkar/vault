@@ -22,7 +22,7 @@ export function LegalSettings() {
           <button
             type="button"
             onClick={() => toggleSection("privacy")}
-            className="settings-group settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
+            className="settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
           >
             <span className="settings-row-icon"><ShieldCheckIcon aria-hidden="true" /></span>
             <span>
@@ -35,7 +35,7 @@ export function LegalSettings() {
           </button>
           
           {openSection === "privacy" && (
-            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/40 bg-secondary/10">
+            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-separator/50 bg-secondary/10">
               <p><strong>Effective Date:</strong> January 1, 2026</p>
               <p>At Telkar Vault, your privacy is our highest priority. We are committed to complying with global and regional data protection laws, including the <strong>India Digital Personal Data Protection (DPDP) Act, 2023</strong>, the <strong>General Data Protection Regulation (GDPR)</strong>, and the <strong>California Consumer Privacy Act (CCPA)</strong>.</p>
               
@@ -59,7 +59,7 @@ export function LegalSettings() {
                 <li><strong>Right of Nomination (DPDP):</strong> You have the right to nominate an individual to act on your behalf in the event of death or incapacity (handled via external support request).</li>
               </ul>
 
-              <p className="text-xs pt-4 border-t border-border/30 mt-4">
+              <p className="text-xs pt-4 border-t border-separator/30 mt-4">
                 If you have questions about our privacy practices, please contact our Data Protection Officer at privacy@telkar.com.
               </p>
             </div>
@@ -71,7 +71,7 @@ export function LegalSettings() {
           <button
             type="button"
             onClick={() => toggleSection("terms")}
-            className="settings-group settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
+            className="settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
           >
             <span className="settings-row-icon"><FileTextIcon aria-hidden="true" /></span>
             <span>
@@ -84,7 +84,7 @@ export function LegalSettings() {
           </button>
           
           {openSection === "terms" && (
-            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/40 bg-secondary/10">
+            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-separator/50 bg-secondary/10">
               <p><strong>Effective Date:</strong> January 1, 2026</p>
               <p>Welcome to Telkar Vault. By using our application, you agree to these Terms of Service. Please read them carefully.</p>
               
@@ -108,7 +108,7 @@ export function LegalSettings() {
           <button
             type="button"
             onClick={() => toggleSection("security")}
-            className="settings-group settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
+            className="settings-control-row w-full text-left bg-transparent border-0 cursor-pointer system-interactive select-none"
           >
             <span className="settings-row-icon"><ScaleIcon aria-hidden="true" /></span>
             <span>
@@ -121,7 +121,7 @@ export function LegalSettings() {
           </button>
           
           {openSection === "security" && (
-            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-border/40 bg-secondary/10">
+            <div className="p-4 px-5 text-[14px] text-muted-foreground leading-relaxed space-y-4 border-t border-separator/50 bg-secondary/10">
               <p>Our security model ensures that you are the only one who holds the keys to your data.</p>
               
               <ul className="list-disc pl-5 space-y-2">
