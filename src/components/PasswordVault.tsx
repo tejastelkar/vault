@@ -424,8 +424,22 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
 
           {/* Profile-like Header */}
           <div className="flex flex-col items-center pt-8 md:pt-10 pb-6 px-6">
-            <div className="w-20 h-20 rounded-[24px] bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 flex items-center justify-center text-[36px] font-bold text-primary shadow-sm mb-4">
+            <div className="w-20 h-20 rounded-[24px] bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 flex items-center justify-center text-[36px] font-bold text-primary shadow-sm mb-4 relative overflow-hidden shrink-0">
               {item.title.charAt(0).toUpperCase()}
+              {(() => {
+                const faviconDomain = item.domain || parsed.domain;
+                if (!faviconDomain) return null;
+                return (
+                  <img
+                    src={`https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=128`}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-contain p-2 bg-white dark:bg-[#1c1c1e]"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                );
+              })()}
             </div>
             <h3 id="password-detail-title" className="text-[24px] font-bold tracking-tight text-foreground text-center leading-tight mb-1">{item.title}</h3>
             <p className="text-[14.5px] font-medium text-muted-foreground text-center">{item.category}</p>
