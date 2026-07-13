@@ -9,6 +9,7 @@ import { SettingsNavigation } from "@/components/settings/SettingsNavigation";
 import { SETTINGS_SECTIONS, type SettingsProps, type SettingsSection } from "@/components/settings/settings-types";
 import { SecuritySettings } from "@/components/settings/SecuritySettings";
 import { BackupSettings } from "@/components/settings/BackupSettings";
+import { LegalSettings } from "@/components/settings/LegalSettings";
 import { DangerSettings } from "@/components/settings/DangerSettings";
 
 export function Settings({ masterPassword, onLock }: SettingsProps) {
@@ -36,6 +37,7 @@ export function Settings({ masterPassword, onLock }: SettingsProps) {
               {active === "appearance" && <AppearanceSettings />}
               {active === "security" && <SecuritySettings masterPassword={masterPassword} onLock={onLock} />}
               {active === "backup" && <BackupSettings />}
+              {active === "legal" && <LegalSettings />}
               {active === "danger" && <DangerSettings masterPassword={masterPassword} />}
             </motion.div>
           </AnimatePresence>
