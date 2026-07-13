@@ -53,8 +53,8 @@ export function LegalSettings() {
                 <h3 className="text-foreground text-[16px] font-semibold mt-8 mb-3">Your Rights (DPDP, GDPR, CCPA)</h3>
                 <p>Depending on your jurisdiction, you have the following rights regarding your personal data:</p>
                 <ul className="list-disc pl-5 space-y-2 mt-2">
-                  <li><strong>Right to Access & Portability:</strong> You can export your entire vault data at any time from the "Data & Backup" settings.</li>
-                  <li><strong>Right to Erasure (Right to be Forgotten):</strong> You can permanently delete your account and all associated encrypted data from the "Danger Zone" settings. Once deleted, this data cannot be recovered.</li>
+                  <li><strong>Right to Access & Portability:</strong> You can export your entire vault data at any time from the &ldquo;Data &amp; Backup&rdquo; settings.</li>
+                  <li><strong>Right to Erasure (Right to be Forgotten):</strong> You can permanently delete your account and all associated encrypted data from the &ldquo;Danger Zone&rdquo; settings. Once deleted, this data cannot be recovered.</li>
                   <li><strong>Right to Correction:</strong> You can update your account information (like your email address) directly within the app.</li>
                   <li><strong>Right of Nomination (DPDP):</strong> You have the right to nominate an individual to act on your behalf in the event of death or incapacity (handled via external support request).</li>
                 </ul>
@@ -104,10 +104,10 @@ export function LegalSettings() {
                 <p>You must not use our service to store illegal content, distribute malware, or engage in activities that compromise the security and availability of the service.</p>
 
                 <h3 className="text-foreground text-[16px] font-semibold mt-8 mb-3">3. Limitation of Liability</h3>
-                <p>Telkar Vault is provided "as is" without warranties of any kind. We are not liable for data loss resulting from forgotten Master Passwords, compromised devices, or user error.</p>
+                <p>Telkar Vault is provided &ldquo;as is&rdquo; without warranties of any kind. We are not liable for data loss resulting from forgotten Master Passwords, compromised devices, or user error.</p>
 
                 <h3 className="text-foreground text-[16px] font-semibold mt-8 mb-3">4. Termination</h3>
-                <p>We reserve the right to suspend or terminate your account if you violate these Terms. You may terminate your account at any time by using the "Delete Account" feature.</p>
+                <p>We reserve the right to suspend or terminate your account if you violate these Terms. You may terminate your account at any time by using the &ldquo;Delete Account&rdquo; feature.</p>
               </div>
             </div>
           </motion.section>

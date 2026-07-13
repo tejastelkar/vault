@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { LocalVerificationSheet } from "@/components/settings/LocalVerificationSheet";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/Toast";
+import { vaultFetch } from "@/lib/authToken";
 
 type DangerAction = "clear" | "account";
 
@@ -24,7 +25,7 @@ export function DangerSettings({ masterPassword }: { masterPassword: string }) {
     setError(null);
     try {
       if (action === "account") {
-        const response = await fetch("/api/delete-account", { method: "POST" });
+        const response = await vaultFetch("/api/delete-account", { method: "POST" });
         const payload = await response.json() as { error?: string };
         if (!response.ok) throw new Error(payload.error ?? "Account deletion failed.");
         await supabase.auth.signOut({ scope: "global" });

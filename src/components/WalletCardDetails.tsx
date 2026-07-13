@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon, TrashIcon, XIcon } from "lucide-react";
 import { CardNetworkLogo, getCardNetwork } from "@/components/CardLogos";
 
@@ -21,7 +21,6 @@ export interface WalletCardDetailsProps {
 export function WalletCardDetails(props: WalletCardDetailsProps) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  useEffect(() => { setRevealed(false); setCopied(null); }, [props.number]);
 
   const copy = (value: string, label: string) => {
     props.onCopy(value, label);

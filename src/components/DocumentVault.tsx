@@ -25,6 +25,8 @@ import { ChevronDownIcon, ChevronRightIcon, FileIcon, DownloadIcon, XIcon, Spark
 import { motion, AnimatePresence } from "framer-motion";
 import { useOptimisticDelete } from "@/hooks/useOptimisticDelete";
 import { ContextActions } from "@/components/ui/context-actions";
+import { getVaultAccessToken } from "@/lib/authToken";
+import { buildSafeDocumentFilename, getAiRenameEligibility } from "@/lib/documentFilename";
 
 interface VaultDocument {
   id: string;
@@ -42,6 +44,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [useAI, setUseAI] = useState(true);
+  const [renameFeedback, setRenameFeedback] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [previews, setPreviews] = useState<Record<string, { url: string, loading: boolean }>>({});
   const [previewModal, setPreviewModal] = useState<{ isOpen: boolean, doc: VaultDocument | null, url: string, loading: boolean }>({ isOpen: false, doc: null, url: '', loading: false });
@@ -61,7 +64,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
 
   useEffect(() => {
     if (focusedItemId) {
-      setExpandedId(focusedItemId);
+      queueMicrotask(() => setExpandedId(focusedItemId));
       setTimeout(() => {
         const el = document.getElementById(`item-${focusedItemId}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -137,9 +140,18 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
 
     setUploading(true);
     try {
-      let finalFileName = selectedFile.name;
+      let finalFileName = buildSafeDocumentFilename("", selectedFile.name);
+      const accessToken = await getVaultAccessToken();
 
-      if (useAI && (selectedFile.type.startsWith("image/") || selectedFile.type === "application/pdf")) {
+      if (useAI) {
+        const eligibility = getAiRenameEligibility(selectedFile);
+        if (!eligibility.eligible) {
+          setRenameFeedback(
+            eligibility.reason === "too-large"
+              ? "This file is larger than 6 MB, so it will be encrypted with its original name."
+              : "AI naming supports PDF, JPEG, PNG, and WebP files. The original name will be used.",
+          );
+        } else {
         try {
           const base64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -147,14 +159,15 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
             reader.onload = () => resolve((reader.result as string).split(',')[1]);
             reader.onerror = reject;
           });
-          const aiName = await analyzeImageName(base64, selectedFile.type);
+          const aiName = await analyzeImageName(accessToken, base64, selectedFile.type);
           if (aiName) {
-            const ext = selectedFile.name.split('.').pop();
-            finalFileName = `${aiName}.${ext}`;
+            finalFileName = buildSafeDocumentFilename(aiName, selectedFile.name);
+            setRenameFeedback(`Will save as ${finalFileName}`);
           }
         } catch (err) {
           console.error("AI rename failed:", err);
-          // Fall back to original file name
+          setRenameFeedback("AI naming is temporarily unavailable. The encrypted file will keep its original name.");
+        }
         }
       }
 
@@ -174,7 +187,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
 
       if (uploadError) throw uploadError;
 
-      const category = await categorizeDocument(finalFileName);
+      const category = await categorizeDocument(accessToken, finalFileName);
 
       const { error: dbError } = await supabase.from("vault_documents").insert({
         user_id: user.id,
@@ -188,6 +201,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
       if (dbError) throw dbError;
 
       setSelectedFile(null);
+      setRenameFeedback(null);
       setIsAddOpen(false);
       invalidateCache("vault_documents");
       fetchDocuments();
@@ -325,7 +339,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
               <div className="flex flex-col gap-3 p-4">
                 <input
                   type="file"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setRenameFeedback(null); }}
                   required
                   className="block w-full text-[15px] text-muted-foreground
                     file:mr-4 file:py-2.5 file:px-4
@@ -341,9 +355,13 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                     <SparklesIcon className="w-4 h-4 text-primary" strokeWidth={2.5} /> Auto-rename using AI Vision
                   </label>
                 </div>
+                <p className="px-1 text-[12px] leading-4 text-muted-foreground">
+                  Files selected for AI naming are sent securely for title extraction only. The document is encrypted before storage.
+                </p>
+                {renameFeedback && <p role="status" className="rounded-xl bg-primary/10 px-3 py-2 text-[13px] leading-5 text-foreground">{renameFeedback}</p>}
               </div>
             </AdaptiveSheetBody>
-            <AdaptiveSheetFooter><Button type="button" variant="ghost" onClick={() => setIsAddOpen(false)}>Cancel</Button><Button type="submit" className="import-primary-action" disabled={uploading || !selectedFile}>{uploading ? "Encrypting..." : "Encrypt & Upload"}</Button></AdaptiveSheetFooter>
+            <AdaptiveSheetFooter><Button type="button" variant="ghost" onClick={() => { setIsAddOpen(false); setRenameFeedback(null); }}>Cancel</Button><Button type="submit" className="import-primary-action" disabled={uploading || !selectedFile}>{uploading ? "Encrypting..." : "Encrypt & Upload"}</Button></AdaptiveSheetFooter>
             </form>
           </AdaptiveSheet>
         </div>
@@ -392,9 +410,8 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                   <AnimatePresence initial={false}>
                   {categoryDocs
                     .sort((a, b) => a.title.localeCompare(b.title))
-                    .map((doc, i, arr) => {
+                    .map((doc) => {
                   const isExpanded = expandedId === doc.id;
-                  const isLast = i === arr.length - 1;
                   const isSelected = selectedIds.has(doc.id);
 
               return (
@@ -414,6 +431,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                   >
                     {isExpanded && !isSelectionMode && (
                       <motion.div
+                        key="active-bg"
                         layoutId="document-active-bg"
                         className="absolute inset-0 bg-primary/10 rounded-[10px]"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
@@ -421,6 +439,7 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                       />
                     )}
                     <button
+                      key="trigger-btn"
                       onClick={(e) => isSelectionMode ? toggleSelection(doc.id, e) : setExpandedId(isExpanded ? null : doc.id)}
                       className="relative z-10 flex items-center justify-between p-4 sm:p-5 w-full focus:outline-none cursor-default group bg-transparent"
                     >
@@ -442,9 +461,10 @@ export function DocumentVault({ masterPassword, focusedItemId, refreshVersion = 
                     </div>
                   </button>
 
-                  <AnimatePresence initial={false}>
+                  <AnimatePresence key="animate-presence" initial={false}>
                   {isExpanded && (
                     <motion.div 
+                      key="expanded-content"
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}

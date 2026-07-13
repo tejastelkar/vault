@@ -79,19 +79,13 @@ export function Dashboard({ masterPassword }: DashboardProps) {
   const [recentNotes, setRecentNotes] = useState<DashboardNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("User");
-  const [showBioBanner, setShowBioBanner] = useState(false);
+  const [showBioBanner, setShowBioBanner] = useState(() => isBiometricsSupported() && !hasBiometricsEnabled());
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
 
   const firstName = fullName.split(' ')[0] || "User";
-
-  useEffect(() => {
-    if (isBiometricsSupported() && !hasBiometricsEnabled()) {
-      setShowBioBanner(true);
-    }
-  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -184,8 +178,8 @@ export function Dashboard({ masterPassword }: DashboardProps) {
       if (error) throw error;
       setFullName(editNameValue.trim());
       setIsEditingName(false);
-    } catch (err: any) {
-      alert(err.message || "Failed to update name");
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Failed to update name");
     } finally {
       setIsSavingName(false);
     }
@@ -265,8 +259,8 @@ export function Dashboard({ masterPassword }: DashboardProps) {
                   try {
                     await enableBiometrics(masterPassword);
                     setShowBioBanner(false);
-                  } catch (err: any) {
-                    alert(err.message);
+                  } catch (error: unknown) {
+                    alert(error instanceof Error ? error.message : "Biometric enrollment failed.");
                   }
                 }}
                 className="px-4 py-2 bg-primary text-primary-foreground text-[13px] font-semibold rounded-lg hover:opacity-90 transition-opacity"
@@ -330,18 +324,9 @@ export function Dashboard({ masterPassword }: DashboardProps) {
               <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${i < favoritePasswords.length - 1 ? "border-b border-border" : ""}`}>
                 {/* Favicon icon cell */}
                 <div className="w-10 h-10 rounded-[10px] bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
-                  {p.domain ? (
-                    <img
-                      src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=64`}
-                      alt=""
-                      className="w-6 h-6 object-contain"
-                      onError={e => { e.currentTarget.style.display = "none"; }}
-                    />
-                  ) : (
-                    <span className="text-[16px] font-bold text-muted-foreground">
-                      {p.title?.charAt(0).toUpperCase()}
-                    </span>
-                  )}
+                  <span className="text-[16px] font-bold text-muted-foreground">
+                    {p.title?.charAt(0).toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[15px] font-medium text-foreground truncate">{p.title}</div>

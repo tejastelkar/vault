@@ -4,17 +4,6 @@
 const BIO_ENCRYPTED_KEY = "vault_bio_encrypted_master";
 const BIO_CRED_ID = "vault_bio_credential_id";
 
-// Crypto Helpers
-function bufferToBase64url(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let str = "";
-  for (const charCode of bytes) {
-    str += String.fromCharCode(charCode);
-  }
-  const base64 = btoa(str);
-  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
 function base64urlToBuffer(base64url: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64url.length % 4)) % 4);
   const base64 = (base64url + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -26,11 +15,15 @@ function base64urlToBuffer(base64url: string): ArrayBuffer {
   return buffer.buffer;
 }
 
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return Uint8Array.from(bytes).buffer;
+}
+
 // AES-GCM Encryption using the raw 32-byte AES key
 async function encryptWithRawKey(data: string, rawKey: Uint8Array): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
-    rawKey as any,
+    bytesToArrayBuffer(rawKey),
     "AES-GCM",
     false,
     ["encrypt"]
@@ -56,7 +49,7 @@ async function decryptWithRawKey(cipherB64: string, rawKey: Uint8Array): Promise
   
   const key = await crypto.subtle.importKey(
     "raw",
-    rawKey as any,
+    bytesToArrayBuffer(rawKey),
     "AES-GCM",
     false,
     ["decrypt"]
@@ -156,9 +149,9 @@ export async function unlockWithBiometrics(): Promise<string> {
       userVerification: "required",
       timeout: 60000
     }
-  }) as any; // Cast to any because TS DOM types for AuthenticatorAssertionResponse are slightly lacking sometimes
+  });
 
-  if (!assertion || !assertion.response || !assertion.response.userHandle) {
+  if (!(assertion instanceof PublicKeyCredential) || !(assertion.response instanceof AuthenticatorAssertionResponse) || !assertion.response.userHandle) {
     throw new Error("Authentication failed or device did not return the decryption key.");
   }
 

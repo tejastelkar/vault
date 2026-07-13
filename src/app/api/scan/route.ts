@@ -1,20 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
+import { authenticateRequest } from "@/lib/server/auth";
+import { InvalidJsonBodyError, PayloadTooLargeError, readBoundedJson } from "@/lib/server/requestBody";
 
-const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Failed to scan image";
+const MAX_REQUEST_BYTES = 8_500_000;
+const MAX_BASE64_CHARACTERS = 8_000_000;
+const ALLOWED_SCAN_TYPES = new Set(["global_import", "credit_card", "bank_account"]);
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+function badRequest(error: string, status = 400) {
+  return NextResponse.json({ error }, { status });
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageBase64, type } = await req.json();
-    
-    if (!imageBase64 || !type) {
+    const user = await authenticateRequest(req);
+    if (!user) return badRequest("Unauthorized", 401);
+
+    const body = await readBoundedJson(req, MAX_REQUEST_BYTES);
+    const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64 : "";
+    const type = typeof body.type === "string" ? body.type : "";
+
+    if (!imageBase64 || !ALLOWED_SCAN_TYPES.has(type)) {
       return NextResponse.json({ error: "Missing imageBase64 or type" }, { status: 400 });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    const model = "gemini-3.5-flash"; 
-    
+    const matches = imageBase64.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+    if (!matches || !ALLOWED_IMAGE_TYPES.has(matches[1])) return badRequest("Use a JPEG, PNG, or WebP image.");
+    if (matches[2].length > MAX_BASE64_CHARACTERS) return badRequest("Image is too large to scan.", 413);
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return badRequest("Image scanning is unavailable.", 503);
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const model = "gemini-3-flash-preview";
+
     let schema;
     let prompt;
 
@@ -41,7 +62,7 @@ export async function POST(req: NextRequest) {
           name: { type: Type.STRING, description: "Cardholder name" },
         }
       };
-    } else {
+    } else if (type === "bank_account") {
       prompt = "Extract the bank account details from this document. If you cannot find a value, return empty string. Do not hallucinate values.";
       schema = {
         type: Type.OBJECT,
@@ -51,17 +72,12 @@ export async function POST(req: NextRequest) {
           name: { type: Type.STRING, description: "Account holder name or institution name" },
         }
       };
+    } else {
+      return badRequest("Unsupported scan type.");
     }
 
-    // Split base64 to get MIME type and pure base64 data
-    const matches = imageBase64.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
-    let mimeType = "image/jpeg";
-    let base64Data = imageBase64;
-    
-    if (matches && matches.length === 3) {
-      mimeType = matches[1];
-      base64Data = matches[2];
-    }
+    const mimeType = matches[1];
+    const base64Data = matches[2];
 
     const response = await ai.models.generateContent({
       model: model,
@@ -82,7 +98,7 @@ export async function POST(req: NextRequest) {
       config: {
         responseMimeType: "application/json",
         responseSchema: schema,
-        temperature: 0.1, 
+        temperature: 0.1,
       },
     });
 
@@ -92,9 +108,11 @@ export async function POST(req: NextRequest) {
     const parsed = JSON.parse(resultText) as unknown;
     if (type === "global_import") return NextResponse.json({ ok: true, data: parsed });
     return NextResponse.json({ data: parsed });
-    
-  } catch (err: unknown) {
-    console.error("Gemini API Error:", err);
-    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
+
+  } catch (error: unknown) {
+    if (error instanceof PayloadTooLargeError) return badRequest("Image is too large to scan.", 413);
+    if (error instanceof InvalidJsonBodyError) return badRequest("Request body must be valid JSON.");
+    console.error("Gemini scan failed:", error);
+    return NextResponse.json({ error: "The image could not be analyzed. Try again." }, { status: 502 });
   }
 }

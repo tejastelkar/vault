@@ -34,9 +34,27 @@ test("SQL setup covers all vault tables and update policies preserve ownership",
 
 test("raw account password and master key are not persisted in localStorage", () => {
   const auth = read("src/components/Auth.tsx");
+  const page = read("src/app/page.tsx");
   assert.equal(auth.includes("vault_password"), false);
   assert.equal(auth.includes("vault_master_key"), false);
   assert.equal(auth.includes("localStorage.setItem(\"vault_email\""), false);
+  assert.equal(page.includes("sessionStorage.setItem"), false);
+  assert.equal(page.includes("SESSION_MASTER_KEY"), false);
+});
+
+test("account deletion authenticates the caller and revokes refresh sessions", () => {
+  const route = read("src/app/api/delete-account/route.ts");
+  assert.match(route, /authenticateRequest\(request\)/);
+  assert.match(route, /admin\.auth\.admin\.signOut\(accessToken,\s*"global"\)/);
+  assert.match(route, /collectPaginated/);
+  assert.match(route, /chunkValues/);
+  assert.match(route, /admin\.auth\.admin\.deleteUser\(user\.id\)/);
+});
+
+test("scan requests are byte-bounded before JSON parsing", () => {
+  const route = read("src/app/api/scan/route.ts");
+  assert.match(route, /readBoundedJson\(req,\s*MAX_REQUEST_BYTES\)/);
+  assert.doesNotMatch(route, /req\.json\(\)/);
 });
 
 test("client crypto does not depend on Node Buffer", () => {
@@ -73,10 +91,10 @@ test("mobile shell keeps iOS-style safe areas and native tab treatment", () => {
   const css = read("src/app/globals.css");
 
   assert.match(page, /ios-app-shell/);
-  assert.match(page, /ios-mobile-header/);
+  assert.match(page, /vault-header/);
   assert.match(page, /apple-tabbar/);
   assert.match(page, /layoutId="mobile-bg"/);
-  assert.match(page, /max-w-6xl mx-auto w-full px-4 sm:px-6 md:px-7/);
+  assert.match(page, /max-w-6xl/);
   assert.match(css, /height:\s*100dvh/);
   assert.match(css, /--bottom-bar-height:\s*82px/);
   assert.match(css, /@media \(max-width:\s*767px\)/);
@@ -84,7 +102,7 @@ test("mobile shell keeps iOS-style safe areas and native tab treatment", () => {
 
 test("responsive shell uses the shared Apple ecosystem chrome", () => {
   const page = read("src/app/page.tsx");
-  for (const klass of ["apple-app", "apple-sidebar", "apple-toolbar", "apple-large-title", "apple-tabbar"]) {
+  for (const klass of ["apple-app", "apple-sidebar", "vault-header", "vault-header-search", "apple-tabbar"]) {
     assert.match(page, new RegExp(klass));
   }
   assert.match(page, /aria-label="Primary navigation"/);
@@ -94,25 +112,24 @@ test("adaptive header separates desktop search and mobile actions", () => {
   const page = read("src/app/page.tsx");
   const css = read("src/app/globals.css");
 
-  for (const klass of ["apple-adaptive-header", "apple-header-title", "apple-header-search", "apple-header-actions", "apple-mobile-identity"]) {
+  for (const klass of ["vault-header", "vault-header-title", "vault-header-search", "vault-header-actions", "vault-header-mobile-search"]) {
     assert.match(page, new RegExp(klass));
   }
-  assert.match(page, /apple-theme-toggle[^\n]*hidden[^\n]*md:flex/);
-  assert.match(css, /\.apple-header-search\s*\{[^}]*position:\s*absolute[^}]*left:\s*50%/s);
-  assert.match(css, /\.apple-adaptive-header\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top/s);
+  assert.match(page, /vault-header-theme/);
+  assert.match(css, /\.vault-header\s*\{[^}]*grid-template-columns:\s*1fr minmax\(280px,420px\) 1fr/s);
+  assert.match(css, /@media \(max-width:\s*767px\)[\s\S]*?\.vault-header\s*\{[^}]*safe-area-inset-top/s);
 });
 
 test("passwords use sibling master detail and an accessible mobile sheet", () => {
   const passwords = read("src/components/PasswordVault.tsx");
   assert.match(passwords, /data-password-master/);
-  assert.match(passwords, /data-password-detail/);
   assert.ok(passwords.lastIndexOf("renderPasswordDetail(selectedItem)") > passwords.indexOf("data-password-master"));
   assert.match(passwords, /role="dialog"/);
   assert.match(passwords, /aria-modal="true"/);
   assert.match(passwords, /aria-label="Close password details"/);
   assert.match(passwords, /e\.key === "Escape"/);
   assert.match(passwords, /EyeIcon/);
-  assert.match(passwords, /ExternalLinkIcon/);
+  assert.match(passwords, /CopyIcon/);
 });
 
 test("wallet presentation is isolated in an accessible PaymentCard", () => {
@@ -122,8 +139,8 @@ test("wallet presentation is isolated in an accessible PaymentCard", () => {
   assert.match(card, /export interface PaymentCardProps/);
   assert.match(card, /export function PaymentCard/);
   assert.match(card, /CardNetworkLogo/);
-  assert.match(card, /aria-expanded/);
-  assert.match(card, /tabular-nums/);
+  assert.match(card, /aria-current/);
+  assert.match(card, /wallet-card-number/);
   assert.match(wallet, /<PaymentCard/);
 });
 
@@ -146,28 +163,26 @@ test("native Apple primitives cover lists, sheets, selection, and tactile states
   for (const klass of ["apple-grouped-list", "apple-grouped-row", "apple-bottom-sheet", "apple-selection-toolbar", "apple-pressed", "type-large-title", "type-section-title", "type-row-title", "type-supporting", "type-metadata", "type-group-label"]) assert.match(css, new RegExp(`\\.${klass}`));
 });
 
-test("Wallet stack and Settings profile expose native structure", () => {
+test("Wallet workspace and Settings expose native structure", () => {
   const card = read("src/components/PaymentCard.tsx");
   const wallet = read("src/components/WalletVault.tsx");
-  const profile = read("src/components/Profile.tsx");
+  const settings = read("src/components/settings/Settings.tsx") + read("src/components/settings/settings-types.ts");
   const css = read("src/app/globals.css");
-  assert.match(card, /stacked: boolean/);
-  assert.match(card, /active: boolean/);
-  assert.match(wallet, /apple-wallet-stack/);
-  assert.match(css, /\.apple-wallet-card-active/);
+  assert.match(card, /selected: boolean/);
+  assert.match(wallet, /wallet-workspace/);
+  assert.match(css, /\.wallet-card-wrap\[data-selected\]/);
   assert.match(css, /--apple-spring/);
-  for (const label of ["Account", "Security", "Appearance", "Data", "Danger Zone"]) assert.match(profile, new RegExp(label));
+  for (const label of ["Account", "Security", "Appearance", "Data & Backup", "Danger Zone"]) assert.match(settings, new RegExp(label));
 });
 
 test("global importer has paste review saving and truthful result stages", () => {
   const importer = read("src/components/GlobalMagicImport.tsx");
-  assert.match(importer, /type ImportPhase/);
-  for (const phase of ["paste", "review", "saving", "done"]) assert.match(importer, new RegExp(`"${phase}"`));
-  assert.match(importer, /Review Import/);
-  assert.match(importer, /Save.*Items/);
-  assert.match(importer, /selected/);
-  assert.match(importer, /excluded/);
-  assert.match(importer, /failed/);
+  assert.match(importer, /type State/);
+  for (const phase of ["source", "analyzing", "review", "saving", "results"]) assert.match(importer, new RegExp(`"${phase}"`));
+  assert.match(importer, /Review import/);
+  assert.match(importer, /saveImportDrafts/);
+  assert.match(importer, /classifyDuplicates/);
+  assert.match(importer, /failures/);
 });
 
 test("Digital Wallet uses one filterable card stack", () => {
@@ -177,24 +192,20 @@ test("Digital Wallet uses one filterable card stack", () => {
   assert.match(wallet, /type WalletFilter/);
   assert.match(wallet, /walletFilter/);
   assert.match(wallet, /"All".*"Credit".*"Debit"/s);
-  assert.equal((wallet.match(/apple-wallet-stack/g) || []).length, 1);
-  assert.match(wallet, /!expandedCardId\s*&&\s*cards\.indexOf\(item\)\s*===\s*cards\.length\s*-\s*1/);
-  assert.match(card, /apple-wallet-card-header/);
-  assert.match(card, /apple-wallet-card-body/);
-  assert.match(card, /apple-wallet-card-details[^\n]*md:hidden/);
-  assert.match(card, /onClick=\{selectionMode \? onSelect : onToggle\}/);
-  assert.match(card, /hasDetails\s*&&/);
-  assert.match(wallet, /apple-wallet-master-detail/);
-  assert.match(wallet, /apple-wallet-detail-pane/);
-  assert.match(wallet, /Delete Card/);
-  assert.match(css, /\.apple-wallet-card-stacked:not\(\.apple-wallet-card-active\)[^{]*\{[^}]*height:\s*76px[^}]*overflow:\s*hidden/s);
-  assert.match(css, /\.apple-wallet-card-stacked:not\(\.apple-wallet-card-active\)[^{]*\.apple-wallet-card-body\s*\{[^}]*display:\s*none/s);
+  assert.match(wallet, /className="wallet-workspace"/);
+  assert.match(wallet, /className="wallet-deck"/);
+  assert.match(card, /wallet-card-top/);
+  assert.match(card, /wallet-card-bottom/);
+  assert.match(card, /onClick=\{selectionMode \? onToggleChecked : onActivate\}/);
+  assert.match(wallet, /wallet-inspector/);
+  assert.match(wallet, /wallet-mobile-sheet md:hidden/);
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.wallet-workspace\s*\{[^}]*display:\s*block/s);
 });
 
 test("Bank Vault uses compact grouped institution rows", () => {
   const bank = read("src/components/BankVault.tsx");
   assert.match(bank, /apple-bank-list/);
-  assert.match(bank, /apple-bank-row/);
+  assert.match(bank, /apple-bank-list apple-master-list/);
   assert.match(bank, /Account suffix/);
   assert.match(bank, /IFSC \/ Routing/);
   assert.match(bank, /ChevronRightIcon/);
@@ -225,17 +236,17 @@ test("Bank Vault locks desktop master and detail into a compact two-column works
 test("desktop master-detail starts at the same breakpoint as the desktop sidebar", () => {
   const css = read("src/app/globals.css");
   const page = read("src/app/page.tsx");
-  const profile = read("src/components/Profile.tsx");
+  const settings = read("src/components/settings/Settings.tsx");
   const wallet = read("src/components/WalletVault.tsx");
   assert.match(css, /@media \(min-width:\s*768px\)[\s\S]*?\.apple-bank-master-detail\s*\{[^}]*grid-template-columns/);
-  assert.match(css, /@media \(min-width:\s*768px\)[\s\S]*?\.apple-wallet-master-detail\s*\{[^}]*grid-template-columns/);
+  assert.match(css, /@media \(min-width:\s*768px\)[\s\S]*?\.wallet-workspace\s*\{[^}]*grid-template-columns/);
   assert.doesNotMatch(css, /\.apple-detail-pane\s*>\s*div\s*\{/);
   assert.match(page, /max-w-6xl/);
   assert.match(page, /contentScrollRef\.current\?\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
-  assert.match(profile, /md:grid-cols-2/);
+  assert.match(settings, /settings-layout/);
   assert.doesNotMatch(wallet, /apple-wallet-stack[^\n]*lg:grid-cols-2/);
-  assert.match(wallet, /apple-wallet-detail-backdrop/);
-  assert.match(wallet, /expandedCardId \? "block" : "hidden md:block"/);
+  assert.match(wallet, /className="wallet-workspace"/);
+  assert.match(wallet, /className="wallet-mobile-sheet md:hidden"/);
 });
 
 test("Passwords and Bank Vault adopt adaptive master-detail surfaces", () => {
@@ -256,10 +267,11 @@ test("Passwords and Bank Vault adopt adaptive master-detail surfaces", () => {
 });
 
 test("Profile uses a compact Apple Settings hierarchy", () => {
-  const profile = read("src/components/Profile.tsx");
-  assert.match(profile, /apple-settings-layout/);
-  for (const section of ["account", "security", "appearance", "data", "danger"]) {
-    assert.match(profile, new RegExp(`data-settings-section="${section}"`));
+  const settings = read("src/components/settings/Settings.tsx");
+  const navigation = read("src/components/settings/settings-types.ts");
+  assert.match(settings, /settings-layout/);
+  for (const section of ["account", "security", "appearance", "backup", "danger"]) {
+    assert.match(navigation, new RegExp(`id: "${section}"`));
   }
-  assert.equal((profile.match(/>Danger Zone</g) || []).length, 1);
+  assert.match(settings, /DangerSettings/);
 });

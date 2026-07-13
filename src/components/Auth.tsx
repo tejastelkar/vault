@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Loader2Icon, SunIcon, MoonIcon } from "lucide-react";
 import { FaceIdIcon, AppleLockIcon } from "@/components/Icons";
@@ -68,13 +68,8 @@ export function Auth({
   const [pinError, setPinError] = useState<string | null>(null);
   const [savingPin, setSavingPin] = useState(false);
 
-  const [isBioSupported, setIsBioSupported] = useState(false);
-  const [hasBio, setHasBio] = useState(false);
-
-  useEffect(() => {
-    setIsBioSupported(isBiometricsSupported());
-    setHasBio(hasBiometricsEnabled());
-  }, []);
+  const [isBioSupported] = useState(() => isBiometricsSupported());
+  const [hasBio] = useState(() => hasBiometricsEnabled());
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -189,7 +184,7 @@ export function Auth({
 
     if (pinSetupPhase === "prompt") {
       return (
-        <div className="flex h-screen w-full items-center justify-center bg-background px-4 relative">
+        <div className="flex h-dvh w-full items-center justify-center bg-background px-4 relative">
           {themeToggleButton}
           <motion.div
             className="w-full max-w-xs flex flex-col items-center gap-8 text-center"
@@ -213,8 +208,8 @@ export function Auth({
                     try {
                       await enableBiometrics(pendingMaster!);
                       onLogin(pendingMaster!);
-                    } catch (err: any) {
-                      setPinError(err.message);
+                    } catch (error: unknown) {
+                      setPinError(error instanceof Error ? error.message : "Biometric enrollment failed.");
                     }
                   }}
                   className="w-full py-3 rounded-xl bg-foreground text-background font-semibold text-[16px] hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
@@ -247,7 +242,7 @@ export function Auth({
     }
 
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background px-4 relative">
+      <div className="flex h-dvh w-full items-center justify-center bg-background px-4 relative">
         {themeToggleButton}
         <motion.div
           key={pinSetupPhase}
@@ -297,7 +292,7 @@ export function Auth({
 
           {/* Numpad */}
           <div className="grid grid-cols-3 gap-3 w-full">
-            {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k, i) => {
+            {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k) => {
               if (k === "") return <div key="empty" />;
               return (
                 <motion.button
@@ -329,7 +324,7 @@ export function Auth({
   }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-background px-4 sm:px-0 font-sans relative">
+    <div className="flex h-dvh w-full items-center justify-center bg-background px-4 sm:px-0 font-sans relative">
       {themeToggleButton}
       <motion.div 
         className="w-full max-w-sm"
@@ -406,8 +401,8 @@ export function Auth({
                 try {
                   const masterKey = await unlockWithBiometrics();
                   onLogin(masterKey);
-                } catch (err: any) {
-                  setError(err.message);
+                } catch (error: unknown) {
+                  setError(error instanceof Error ? error.message : "Biometric unlock failed.");
                 }
               }}
               type="button"

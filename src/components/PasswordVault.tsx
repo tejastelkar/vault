@@ -1,9 +1,9 @@
-/* eslint-disable @next/next/no-img-element */
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { encryptText, decryptText } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
-import { enrichPasswordMetadata, parseNotesToPasswords } from "@/app/actions";
+import { enrichPasswordMetadata } from "@/app/actions";
+import { getVaultAccessToken } from "@/lib/authToken";
 import { getCache, setCache, invalidateCache } from "@/lib/vaultCache";
 import { getStrength, getVaultHealthScore, findDuplicateIds } from "@/lib/passwordHealth";
 import { useToast } from "@/components/Toast";
@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { SelectionToolbar } from "@/components/SelectionToolbar";
 import Papa from "papaparse";
 import { AdaptiveSheet, AdaptiveSheetBody, AdaptiveSheetFooter } from "@/components/ui/adaptive-sheet";
-import { ChevronDownIcon, ChevronRightIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon, ExternalLinkIcon, XIcon, CopyIcon } from "lucide-react";
+import { ChevronRightIcon, UploadIcon, TrashIcon, CheckSquareIcon, SquareIcon, StarIcon, MoreHorizontalIcon, PlusIcon, XIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -82,6 +82,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
 
   
   // New Item State
@@ -101,7 +102,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
 
   useEffect(() => {
     if (focusedItemId) {
-      setExpandedId(focusedItemId);
+      queueMicrotask(() => setExpandedId(focusedItemId));
       setTimeout(() => {
         const el = document.getElementById(`item-${focusedItemId}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -114,7 +115,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
   useEffect(() => {
     if (!expandedId) return;
     const closeOnEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpandedId(null);
+      if (e.key === "Escape") { setExpandedId(null); setRevealedIds(new Set()); }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
@@ -196,7 +197,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
       if (!user) throw new Error("No user found");
 
       // AI Categorization and Domain resolution
-      const metadata = await enrichPasswordMetadata(newTitle);
+      const metadata = await enrichPasswordMetadata(await getVaultAccessToken(), newTitle);
 
       const { error } = await supabase.from("vault_items").insert({
         user_id: user.id,
@@ -369,19 +370,20 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
     const parsed = parsePlaintext(item.plaintext);
     const strength = getStrength(item.plaintext);
     const password = parsed.password || (!parsed.isJson && !parsed.username && item.plaintext !== "Decryption Failed" ? item.plaintext : null);
-    const domain = item.domain || parsed.domain;
-    const href = domain ? (/^https?:\/\//i.test(domain) ? domain : `https://${domain}`) : null;
 
     const DetailValue = ({ label, value, copyLabel = label, concealed = false }: { label: string; value: string; copyLabel?: string; concealed?: boolean }) => (
       <div className="group flex flex-col py-3.5 px-5 bg-background hover:bg-secondary/60 transition-colors relative">
         <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</span>
         <div className="flex items-center justify-between gap-4">
           <span className={`text-[16px] font-medium text-foreground truncate ${concealed ? "font-mono tracking-wide" : ""}`}>
-            {value}
+            {concealed && !revealedIds.has(item.id) ? "••••••••••••" : value}
           </span>
-          <button type="button" onClick={() => copyToClipboard(value, copyLabel)} className="text-muted-foreground/40 hover:text-primary transition-colors shrink-0" aria-label={`Copy ${label.toLowerCase()}`}>
-            <CopyIcon className="w-[18px] h-[18px]" />
-          </button>
+          <span className="flex shrink-0 items-center gap-1">
+            {concealed && <button type="button" onClick={() => setRevealedIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} className="text-muted-foreground/40 hover:text-primary transition-colors" aria-label={revealedIds.has(item.id) ? "Hide password" : "Show password"}>{revealedIds.has(item.id) ? <EyeOffIcon className="w-[18px] h-[18px]" /> : <EyeIcon className="w-[18px] h-[18px]" />}</button>}
+            <button type="button" onClick={() => copyToClipboard(value, copyLabel)} className="text-muted-foreground/40 hover:text-primary transition-colors" aria-label={`Copy ${label.toLowerCase()}`}>
+              <CopyIcon className="w-[18px] h-[18px]" />
+            </button>
+          </span>
         </div>
       </div>
     );
@@ -395,7 +397,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[99] bg-black/40 backdrop-blur-sm w-full h-full cursor-default"
           aria-label="Close password details"
-          onClick={() => setExpandedId(null)}
+          onClick={() => { setExpandedId(null); setRevealedIds(new Set()); }}
         />
         <motion.aside
           role="dialog"
@@ -412,7 +414,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
             <button type="button" onClick={(e) => handleToggleFavorite(item.id, item.is_favorite, e)} className="p-2.5 text-muted-foreground hover:text-primary transition-colors rounded-full hover:bg-background/50" aria-label="Toggle favorite">
               <StarIcon className={`w-5 h-5 ${item.is_favorite ? "fill-primary text-primary" : ""}`} />
             </button>
-            <button type="button" onClick={() => setExpandedId(null)} className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-background/50 hidden md:flex" aria-label="Close password details">
+            <button type="button" onClick={() => { setExpandedId(null); setRevealedIds(new Set()); }} className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-background/50 hidden md:flex" aria-label="Close password details">
               <XIcon className="w-5 h-5" />
             </button>
           </div>
@@ -426,20 +428,6 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
           <div className="flex flex-col items-center pt-8 md:pt-10 pb-6 px-6">
             <div className="w-20 h-20 rounded-[24px] bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 flex items-center justify-center text-[36px] font-bold text-primary shadow-sm mb-4 relative overflow-hidden shrink-0">
               {item.title.charAt(0).toUpperCase()}
-              {(() => {
-                const faviconDomain = item.domain || parsed.domain;
-                if (!faviconDomain) return null;
-                return (
-                  <img
-                    src={`https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=128`}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-contain p-2 bg-white dark:bg-[#1c1c1e]"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                );
-              })()}
             </div>
             <h3 id="password-detail-title" className="text-[24px] font-bold tracking-tight text-foreground text-center leading-tight mb-1">{item.title}</h3>
             <p className="text-[14.5px] font-medium text-muted-foreground text-center">{item.category}</p>
@@ -632,7 +620,7 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
                   <AnimatePresence initial={false}>
                   {categoryItems
                     .sort((a, b) => a.title.localeCompare(b.title))
-                    .map((item, idx, arr) => {
+                    .map((item) => {
                       const isExpanded = expandedId === item.id;
                       const isSelected = selectedIds.has(item.id);
                       const s = getStrength(item.plaintext);
@@ -683,19 +671,6 @@ export function PasswordVault({ masterPassword, focusedItemId, refreshVersion = 
                               <span className="text-[17px] font-bold text-foreground/50">
                                 {item.title.charAt(0).toUpperCase()}
                               </span>
-                              {(() => {
-                                const parsed = parsePlaintext(item.plaintext);
-                                const faviconDomain = item.domain || parsed.domain;
-                                if (!faviconDomain) return null;
-                                return (
-                                  <img
-                                    src={`https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=64`}
-                                    alt=""
-                                    className="absolute inset-0 w-full h-full object-contain p-1.5 bg-white dark:bg-[#1c1c1e]"
-                                    onError={e => { e.currentTarget.style.display = "none"; }}
-                                  />
-                                );
-                              })()}
                             </div>
 
                             {/* Title + Subtitle */}

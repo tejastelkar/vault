@@ -16,6 +16,9 @@ import { TrashIcon, CameraIcon, Loader2Icon } from "lucide-react";
 import { PaymentCard } from "@/components/PaymentCard";
 import { WalletCardDetails } from "@/components/WalletCardDetails";
 import { SelectionToolbar } from "@/components/SelectionToolbar";
+import { vaultFetch } from "@/lib/authToken";
+import { copySensitiveText } from "@/lib/secureClipboard";
+import { useToast } from "@/components/Toast";
 interface SecureWallet {
   id: string;
   title: string;
@@ -73,10 +76,11 @@ const inferSubtype = (item: DecryptedWallet): "credit" | "debit" | "other" => {
 };
 
 export function WalletVault({ masterPassword, focusedItemId }: { masterPassword: string, focusedItemId?: string | null }) {
+  const toast = useToast();
   const [items, setItems] = useState<DecryptedWallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newItemType, setNewItemType] = useState<"credit_card">("credit_card");
+  const [newItemType] = useState<"credit_card">("credit_card");
 
   // Form State
   const [title, setTitle] = useState("");
@@ -107,15 +111,8 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     ?? null;
 
   useEffect(() => {
-    if (!filteredCards.length) setSelectedCardId(null);
-    else if (!filteredCards.some((item) => item.id === selectedCardId)) {
-      setSelectedCardId(filteredCards[0].id);
-    }
-  }, [filteredCards, selectedCardId]);
-
-  useEffect(() => {
     if (focusedItemId) {
-      setSelectedCardId(focusedItemId);
+      queueMicrotask(() => setSelectedCardId(focusedItemId));
       setTimeout(() => {
         const el = document.getElementById(`item-${focusedItemId}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -145,7 +142,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     setIsScanning(true);
     try {
       const base64 = await readFileAsDataUrl(file);
-      const res = await fetch("/api/scan", {
+      const res = await vaultFetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: base64, type: newItemType })
@@ -305,8 +302,9 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     return "from-slate-700 to-slate-900 shadow-slate-900/40";
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string, label = "Card number") => {
+    const { scheduled } = await copySensitiveText(text);
+    toast(`${label} copied${scheduled ? " and scheduled to clear" : ""}`, "success");
   };
 
   const activateCard = (id: string) => {
@@ -325,7 +323,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
     pin: selectedCard.payload.pin,
     upiPin: selectedCard.payload.upi_pin,
     extraDetails: selectedCard.payload.extra_details,
-    onCopy: (value: string, _label: string) => copyToClipboard(value),
+    onCopy: (value: string, label: string) => { void copyToClipboard(value, label); },
     onDelete: () => handleDelete(selectedCard.id),
   } : null;
 

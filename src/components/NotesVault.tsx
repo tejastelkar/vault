@@ -14,7 +14,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { categorizeNote, parseBulkNotes } from "@/app/actions";
+import { categorizeNote } from "@/app/actions";
+import { getVaultAccessToken } from "@/lib/authToken";
 import { setCache, getCache, invalidateCache } from "@/lib/vaultCache";
 import { useToast } from "@/components/Toast";
 import { useOptimisticDelete } from "@/hooks/useOptimisticDelete";
@@ -61,7 +62,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
 
   useEffect(() => {
     if (focusedItemId) {
-      setExpandedId(focusedItemId);
+      queueMicrotask(() => setExpandedId(focusedItemId));
       setTimeout(() => {
         const el = document.getElementById(`item-${focusedItemId}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -137,7 +138,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
 
       if (!user) throw new Error("No user found");
 
-      const category = await categorizeNote(newTitle);
+      const category = await categorizeNote(await getVaultAccessToken(), newTitle);
 
       const { error } = await supabase.from("secure_notes").insert({
         user_id: user.id,
@@ -331,9 +332,8 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
                   <AnimatePresence initial={false}>
                   {categoryItems
                     .sort((a, b) => a.title.localeCompare(b.title))
-                    .map((item, i, arr) => {
+                    .map((item) => {
                   const isExpanded = expandedId === item.id;
-                  const isLast = i === arr.length - 1;
                   const isSelected = selectedIds.has(item.id);
 
               return (
@@ -353,6 +353,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
                   >
                     {isExpanded && !isSelectionMode && (
                       <motion.div
+                        key="active-bg"
                         layoutId="note-active-bg"
                         className="absolute inset-0 bg-primary/10 rounded-[10px]"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
@@ -360,6 +361,7 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
                       />
                     )}
                     <button
+                      key="trigger-btn"
                       onClick={(e) => isSelectionMode ? toggleSelection(item.id, e) : setExpandedId(isExpanded ? null : item.id)}
                       className="relative z-10 flex items-center justify-between p-4 sm:p-5 w-full focus:outline-none cursor-default group bg-transparent"
                     >
@@ -381,9 +383,10 @@ export function NotesVault({ masterPassword, focusedItemId, refreshVersion = 0 }
                     </div>
                   </button>
 
-                  <AnimatePresence initial={false}>
+                  <AnimatePresence key="animate-presence" initial={false}>
                   {isExpanded && (
                     <motion.div 
+                      key="expanded-content"
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}

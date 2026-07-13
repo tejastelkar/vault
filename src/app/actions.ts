@@ -3,10 +3,25 @@
 import { GoogleGenAI } from "@google/genai";
 import type { GlobalImportResult, ImportExtractionResponse } from "@/lib/import/types";
 import { isGlobalImportResult, normalizeImportResult } from "@/lib/import/normalize";
+import { requireAuthenticatedUser } from "@/lib/server/auth";
 
 export type { GlobalImportResult } from "@/lib/import/types";
 
-export async function analyzeImageName(base64Image: string, mimeType: string): Promise<string> {
+const MAX_TEXT_INPUT = 200_000;
+const MAX_INLINE_BASE64 = 8_400_000;
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+
+function requireShortText(value: string, label: string, maxLength = 255) {
+  const clean = value.trim();
+  if (!clean || clean.length > maxLength) throw new Error(`Invalid ${label}.`);
+  return clean;
+}
+
+export async function analyzeImageName(accessToken: string, base64Image: string, mimeType: string): Promise<string> {
+  await requireAuthenticatedUser(accessToken);
+  if (!ALLOWED_DOCUMENT_MIME_TYPES.has(mimeType) || !base64Image || base64Image.length > MAX_INLINE_BASE64) {
+    throw new Error("This file cannot be analyzed for naming.");
+  }
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not set");
@@ -14,42 +29,55 @@ export async function analyzeImageName(base64Image: string, mimeType: string): P
 
   const ai = new GoogleGenAI({ apiKey });
   
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: "Analyze this document/image and provide a short, descriptive file name (without extension, max 5 words) based on its content. Only return the file name, nothing else. Do not use quotes or backticks." },
-            {
-              inlineData: {
-                data: base64Image,
-                mimeType: mimeType
+  let retries = 5;
+  while (retries > 0) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: "Analyze this document/image and provide a short, descriptive file name (without extension, max 5 words) based on its content. Only return the file name, nothing else. Do not use quotes or backticks." },
+              {
+                inlineData: {
+                  data: base64Image,
+                  mimeType: mimeType
+                }
               }
-            }
-          ]
+            ]
+          }
+        ],
+        config: {
+          temperature: 0.2,
         }
-      ],
-      config: {
-        temperature: 0.2,
+      });
+
+      if (!response.text) {
+        throw new Error("No text returned from Gemini");
       }
-    });
 
-    if (!response.text) {
-      throw new Error("No text returned from Gemini");
+      const suggestedName = response.text.trim();
+      // Clean up any quotes or extra whitespace
+      return suggestedName.replace(/^["']|["']$/g, '').trim();
+    } catch (error: unknown) {
+      const status = typeof error === "object" && error !== null && "status" in error ? Number(error.status) : null;
+      const message = error instanceof Error ? error.message : "";
+      if (status === 503 || message.includes("503")) {
+        retries--;
+        if (retries === 0) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1500)); // wait 1.5s
+      } else {
+        throw error;
+      }
     }
-
-    const suggestedName = response.text.trim();
-    // Clean up any quotes or extra whitespace
-    return suggestedName.replace(/^["']|["']$/g, '').trim();
-  } catch (error) {
-    console.error("Gemini Vision API error:", error);
-    throw new Error("Failed to analyze image");
   }
+  throw new Error("AI rename failed after retries");
 }
 
-export async function enrichPasswordMetadata(title: string): Promise<{ category: string, domain: string | null }> {
+export async function enrichPasswordMetadata(accessToken: string, title: string): Promise<{ category: string, domain: string | null }> {
+  await requireAuthenticatedUser(accessToken);
+  title = requireShortText(title, "password title");
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set");
@@ -96,7 +124,9 @@ export async function enrichPasswordMetadata(title: string): Promise<{ category:
   }
 }
 
-export async function categorizeDocument(title: string): Promise<string> {
+export async function categorizeDocument(accessToken: string, title: string): Promise<string> {
+  await requireAuthenticatedUser(accessToken);
+  title = requireShortText(title, "document title");
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return "Uncategorized";
 
@@ -130,7 +160,9 @@ export async function categorizeDocument(title: string): Promise<string> {
   }
 }
 
-export async function categorizeNote(title: string): Promise<string> {
+export async function categorizeNote(accessToken: string, title: string): Promise<string> {
+  await requireAuthenticatedUser(accessToken);
+  title = requireShortText(title, "note title");
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return "Uncategorized";
 
@@ -164,7 +196,16 @@ export async function categorizeNote(title: string): Promise<string> {
   }
 }
 
-export async function aiSearchVault(query: string, items: { id: string; type: string; title: string; category?: string }[]): Promise<string | null> {
+export async function aiSearchVault(accessToken: string, query: string, items: { id: string; type: string; title: string; category?: string }[]): Promise<string | null> {
+  await requireAuthenticatedUser(accessToken);
+  query = requireShortText(query, "search query", 300);
+  if (!Array.isArray(items) || items.length > 300) throw new Error("Too many search items.");
+  items = items.map((item) => ({
+    id: requireShortText(item.id, "item id", 128),
+    type: requireShortText(item.type, "item type", 40),
+    title: requireShortText(item.title, "item title", 255),
+    category: item.category?.slice(0, 80),
+  }));
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
@@ -201,7 +242,9 @@ export async function aiSearchVault(query: string, items: { id: string; type: st
   }
 }
 
-export async function parseNotesToPasswords(rawText: string): Promise<Array<Record<string, unknown>>> {
+export async function parseNotesToPasswords(accessToken: string, rawText: string): Promise<Array<Record<string, unknown>>> {
+  await requireAuthenticatedUser(accessToken);
+  rawText = requireShortText(rawText, "pasted text", MAX_TEXT_INPUT);
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set");
@@ -245,7 +288,9 @@ export async function parseNotesToPasswords(rawText: string): Promise<Array<Reco
   }
 }
 
-export async function parseBulkNotes(rawText: string): Promise<Array<Record<string, unknown>>> {
+export async function parseBulkNotes(accessToken: string, rawText: string): Promise<Array<Record<string, unknown>>> {
+  await requireAuthenticatedUser(accessToken);
+  rawText = requireShortText(rawText, "pasted text", MAX_TEXT_INPUT);
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set");
@@ -289,7 +334,7 @@ export async function parseBulkNotes(rawText: string): Promise<Array<Record<stri
   }
 }
 
-export async function parseGlobalBulkData(rawText: string): Promise<GlobalImportResult> {
+async function parseGlobalBulkData(rawText: string): Promise<GlobalImportResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set");
@@ -370,8 +415,14 @@ CRITICAL RULES:
   }
 }
 
-export async function extractGlobalImportDrafts(rawText: string): Promise<ImportExtractionResponse> {
+export async function extractGlobalImportDrafts(accessToken: string, rawText: string): Promise<ImportExtractionResponse> {
+  try {
+    await requireAuthenticatedUser(accessToken);
+  } catch {
+    return { ok: false, code: "EXTRACTION_FAILED", message: "Your session has expired. Sign in again to continue." };
+  }
   if (!rawText.trim()) return { ok: false, code: "INVALID_INPUT", message: "Paste some vault data before analyzing it." };
+  if (rawText.length > MAX_TEXT_INPUT) return { ok: false, code: "INVALID_INPUT", message: "This import is too large. Split it into smaller batches." };
   try {
     const result = await parseGlobalBulkData(rawText);
     if (!isGlobalImportResult(result)) return { ok: false, code: "EXTRACTION_FAILED", message: "The extracted data did not match the expected vault format." };
@@ -379,6 +430,7 @@ export async function extractGlobalImportDrafts(rawText: string): Promise<Import
     if (!drafts.length) return { ok: false, code: "EXTRACTION_FAILED", message: "No supported vault items were detected." };
     return { ok: true, drafts };
   } catch (error) {
-    return { ok: false, code: "EXTRACTION_FAILED", message: error instanceof Error ? error.message : "The pasted data could not be analyzed." };
+    console.error("Global import extraction failed:", error);
+    return { ok: false, code: "EXTRACTION_FAILED", message: "The pasted data could not be analyzed. Try a smaller batch or a different source." };
   }
 }

@@ -18,6 +18,7 @@ import type { ImportDraft, ImportSource } from "@/lib/import/types";
 import { decryptText } from "@/lib/crypto";
 import { getCache } from "@/lib/vaultCache";
 import { supabase } from "@/lib/supabase";
+import { getVaultAccessToken, vaultFetch } from "@/lib/authToken";
 
 interface GlobalMagicImportProps { isOpen: boolean; onOpenChange: (open: boolean) => void; masterPassword: string | null; onSuccess: () => void; }
 type State =
@@ -69,7 +70,7 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
     try {
       let drafts: ImportDraft[] = [];
       if (source.kind === "paste") {
-        const response = await extractGlobalImportDrafts(source.text);
+        const response = await extractGlobalImportDrafts(await getVaultAccessToken(), source.text);
         if (!response.ok) throw new Error(response.message);
         drafts = response.drafts;
       } else if (source.kind === "csv" || source.kind === "browser_csv") {
@@ -79,7 +80,7 @@ export function GlobalMagicImport({ isOpen, onOpenChange, masterPassword, onSucc
         if (parsed.errors.length) setError(parsed.errors[0]);
       } else {
         const imageBase64 = await readFileAsDataUrl(source.file);
-        const response = await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64, type: "global_import" }) });
+        const response = await vaultFetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64, type: "global_import" }) });
         const payload = await response.json() as { ok?: boolean; data?: unknown; error?: string };
         if (!response.ok || !payload.ok || !isGlobalImportResult(payload.data)) throw new Error(payload.error ?? "The image could not be analyzed.");
         drafts = normalizeImportResult(payload.data, source.file.name);

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { encryptText, decryptText } from "@/lib/crypto";
 import { setCache, getCache, invalidateCache } from "@/lib/vaultCache";
@@ -19,6 +19,7 @@ import { useToast } from "@/components/Toast";
 import { useOptimisticDelete } from "@/hooks/useOptimisticDelete";
 import { copySensitiveText } from "@/lib/secureClipboard";
 import { ContextActions } from "@/components/ui/context-actions";
+import { vaultFetch } from "@/lib/authToken";
 
 interface SecureWallet {
   id: string;
@@ -36,21 +37,12 @@ interface DecryptedBank {
   payload: BankAccountPayload;
 }
 
-type CreditCardPayload = {
-  number?: string;
-  expiry?: string;
-  cvv?: string;
-  name?: string;
-};
-
 type BankAccountPayload = {
   routing?: string;
   account?: string;
   name?: string;
   extra_details?: string;
 };
-
-type WalletPayload = CreditCardPayload & BankAccountPayload;
 
 type ScanResponse = {
   data?: {
@@ -62,53 +54,6 @@ type ScanResponse = {
     account?: string;
   };
   error?: string;
-};
-
-const TiltCard = ({ children, className }: { children: React.ReactNode, className?: string }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const mouseXSpring = useSpring(x, { stiffness: 150, damping: 20 });
-  const mouseYSpring = useSpring(y, { stiffness: 150, damping: 20 });
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["15deg", "-15deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-15deg", "15deg"]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    const xPct = mouseX / rect.width - 0.5;
-    const yPct = mouseY / rect.height - 0.5;
-    x.set(xPct);
-    y.set(yPct);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
-  return (
-    <motion.div
-      ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        rotateX,
-        rotateY,
-        transformStyle: "preserve-3d",
-      }}
-      className={`relative rounded-[24px] ${className} transition-shadow duration-300`}
-    >
-      <div 
-        style={{ transform: "translateZ(20px)" }} 
-        className="w-full h-full relative"
-      >
-        {children}
-      </div>
-    </motion.div>
-  );
 };
 
 export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }: { masterPassword: string, focusedItemId?: string | null, refreshVersion?: number }) {
@@ -177,7 +122,7 @@ export function BankVault({ masterPassword, focusedItemId, refreshVersion = 0 }:
     setIsScanning(true);
     try {
       const base64 = await readFileAsDataUrl(file);
-      const res = await fetch("/api/scan", {
+      const res = await vaultFetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: base64, type: newItemType })

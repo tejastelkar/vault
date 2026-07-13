@@ -22,6 +22,7 @@
 
 # local feature worktrees
 /.worktrees/
+/.superpowers/
 
 # misc
 .DS_Store

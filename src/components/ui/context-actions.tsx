@@ -87,10 +87,13 @@ export function ContextActions(props: {
   };
 
   const trigger = props.children(bindings);
+  const keyedTrigger = React.isValidElement(trigger)
+    ? React.cloneElement(trigger, { key: "context-trigger" })
+    : <React.Fragment key="context-trigger">{trigger}</React.Fragment>;
 
   return (
     <>
-      {trigger}
+      {keyedTrigger}
       {point && (
         <div key="context-menu" className="vault-context-menu" role="menu" style={{ left: point.x, top: point.y }} onPointerDown={(event) => event.stopPropagation()}>
           {props.actions.map((action) => <ContextActionButton key={action.id} action={action} onSelect={() => run(action)} />)}

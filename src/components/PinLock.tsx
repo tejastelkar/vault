@@ -9,36 +9,38 @@ import { hasBiometricsEnabled, unlockWithBiometrics } from "@/lib/biometrics";
 const MAX_ATTEMPTS = 3;
 const PIN_STORAGE_KEY = "vault_pin_hash";
 const PIN_ENCRYPTED_KEY = "vault_pin_encrypted_master";
+const LEGACY_PIN_ITERATIONS = 100_000;
+const PIN_ITERATIONS = 600_000;
 
 // ── Crypto helpers ────────────────────────────────────────────────────────────
 
-async function hashPin(pin: string, salt: string): Promise<string> {
+async function hashPin(pin: string, salt: string, iterations: number): Promise<string> {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: enc.encode(salt), iterations: 100_000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: enc.encode(salt), iterations, hash: "SHA-256" },
     keyMaterial, 256
   );
   return btoa(String.fromCharCode(...new Uint8Array(bits)));
 }
 
-async function derivePinKey(pin: string, salt: string): Promise<CryptoKey> {
+async function derivePinKey(pin: string, salt: string, iterations: number): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: enc.encode(salt), iterations: 100_000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: enc.encode(salt), iterations, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false, ["encrypt", "decrypt"]
   );
 }
 
-async function encryptWithPin(data: string, pin: string, salt: string): Promise<string> {
-  const key = await derivePinKey(pin, salt);
+async function encryptWithPin(data: string, pin: string, salt: string, iterations: number): Promise<string> {
+  const key = await derivePinKey(pin, salt, iterations);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
@@ -52,11 +54,11 @@ async function encryptWithPin(data: string, pin: string, salt: string): Promise<
   return btoa(String.fromCharCode(...combined));
 }
 
-async function decryptWithPin(cipherB64: string, pin: string, salt: string): Promise<string> {
+async function decryptWithPin(cipherB64: string, pin: string, salt: string, iterations: number): Promise<string> {
   const combined = Uint8Array.from(atob(cipherB64), c => c.charCodeAt(0));
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
-  const key = await derivePinKey(pin, salt);
+  const key = await derivePinKey(pin, salt, iterations);
   const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
   return new TextDecoder().decode(decrypted);
 }
@@ -65,9 +67,9 @@ async function decryptWithPin(cipherB64: string, pin: string, salt: string): Pro
 
 export async function savePinForMaster(pin: string, masterKey: string) {
   const salt = crypto.randomUUID();
-  const pinHash = await hashPin(pin, salt);
-  const encryptedMaster = await encryptWithPin(masterKey, pin, salt);
-  localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify({ hash: pinHash, salt }));
+  const pinHash = await hashPin(pin, salt, PIN_ITERATIONS);
+  const encryptedMaster = await encryptWithPin(masterKey, pin, salt, PIN_ITERATIONS);
+  localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify({ hash: pinHash, salt, iterations: PIN_ITERATIONS }));
   localStorage.setItem(PIN_ENCRYPTED_KEY, encryptedMaster);
 }
 
@@ -92,9 +94,13 @@ export async function verifyPinAndRecoverMaster(pin: string): Promise<string> {
   }
 
   try {
-    const parsed = JSON.parse(stored) as { hash?: string; salt?: string };
+    const parsed = JSON.parse(stored) as { hash?: string; salt?: string; iterations?: number };
     if (!parsed.hash || !parsed.salt) throw new Error("Invalid PIN enrollment.");
-    const inputHash = await hashPin(pin, parsed.salt);
+    const iterations = parsed.iterations ?? LEGACY_PIN_ITERATIONS;
+    if (!Number.isSafeInteger(iterations) || iterations < LEGACY_PIN_ITERATIONS || iterations > PIN_ITERATIONS) {
+      throw new Error("Invalid PIN enrollment.");
+    }
+    const inputHash = await hashPin(pin, parsed.salt, iterations);
     if (inputHash !== parsed.hash) {
       const attempts = Number.parseInt(localStorage.getItem("vault_pin_attempts") || "0", 10) + 1;
       localStorage.setItem("vault_pin_attempts", String(attempts));
@@ -107,7 +113,8 @@ export async function verifyPinAndRecoverMaster(pin: string): Promise<string> {
       throw new Error(`Wrong PIN. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`);
     }
 
-    const masterKey = await decryptWithPin(encryptedMaster, pin, parsed.salt);
+    const masterKey = await decryptWithPin(encryptedMaster, pin, parsed.salt, iterations);
+    if (iterations < PIN_ITERATIONS) await savePinForMaster(pin, masterKey);
     localStorage.removeItem("vault_pin_attempts");
     return masterKey;
   } catch (error) {
@@ -134,11 +141,7 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
   const [shake, setShake] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const [hasBio, setHasBio] = useState(false);
-
-  useEffect(() => {
-    setHasBio(hasBiometricsEnabled());
-  }, []);
+  const [hasBio] = useState(() => hasBiometricsEnabled());
 
   // Read attempts from localStorage so they persist across refreshes
   useEffect(() => {
@@ -193,7 +196,7 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
   };
 
   return (
-    <div className="apple-app apple-surface flex h-screen w-full items-center justify-center px-4">
+    <div className="apple-app apple-surface flex h-dvh w-full items-center justify-center px-4">
       <motion.div
         className="apple-material w-full max-w-xs flex flex-col items-center gap-8 rounded-[28px] p-7"
         initial={{ opacity: 0, y: 16 }}
@@ -256,7 +259,7 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
             if (e.key === "Backspace" || e.key === "Delete") handleDelete();
           }}
         >
-          {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k, i) => {
+          {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((k) => {
             if (k === "") return <div key="empty" />;
             return (
               <motion.button
@@ -287,8 +290,8 @@ export function PinLock({ onUnlock, onFallback }: PinLockProps) {
                 try {
                   const masterKey = await unlockWithBiometrics();
                   onUnlock(masterKey);
-                } catch (err: any) {
-                  setError(err.message);
+                } catch (error: unknown) {
+                  setError(error instanceof Error ? error.message : "Biometric unlock failed.");
                   setChecking(false);
                 }
               }}

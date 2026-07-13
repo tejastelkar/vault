@@ -1,52 +1,80 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { authenticateRequest, getBearerToken } from "@/lib/server/auth";
+import { chunkValues, collectPaginated } from "@/lib/server/pagination";
 
-export async function POST() {
+function serverError() {
+  return NextResponse.json({ error: "The account could not be deleted. Try again." }, { status: 500 });
+}
+
+async function removeStorageObjects(client: SupabaseClient, bucket: string, paths: string[]) {
+  for (const chunk of chunkValues(paths)) {
+    const { error } = await client.storage.from(bucket).remove(chunk);
+    if (error) throw error;
+  }
+}
+
+export async function POST(request: NextRequest) {
   try {
-    // Get the current user from the session cookie (server-side)
-    const cookieStore = await cookies();
-    const serverClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: () => {},
-        },
-      }
+    const accessToken = getBearerToken(request);
+    if (!accessToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const user = await authenticateRequest(request);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceRoleKey) return serverError();
+
+    const admin = createClient(url, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { error: signOutError } = await admin.auth.admin.signOut(accessToken, "global");
+    if (signOutError) throw signOutError;
+
+    const documents = await collectPaginated(async (offset, limit) => {
+      const { data, error } = await admin
+        .from("vault_documents")
+        .select("storage_path")
+        .eq("user_id", user.id)
+        .order("id", { ascending: true })
+        .range(offset, offset + limit - 1);
+      if (error) throw error;
+      return data ?? [];
+    });
+    await removeStorageObjects(
+      admin,
+      "vault_documents",
+      documents.map((document) => document.storage_path).filter((path): path is string => Boolean(path)),
     );
 
-    const { data: { user }, error: userError } = await serverClient.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = user.id;
-
-    // Admin client (service role) — needed to delete auth user
-    const adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
+    const avatarFiles = await collectPaginated(async (offset, limit) => {
+      const { data, error } = await admin.storage.from("avatars").list(user.id, {
+        limit,
+        offset,
+        sortBy: { column: "name", order: "asc" },
+      });
+      if (error) throw error;
+      return data ?? [];
+    });
+    await removeStorageObjects(
+      admin,
+      "avatars",
+      avatarFiles.filter((file) => file.name).map((file) => `${user.id}/${file.name}`),
     );
 
-    // 1. Delete all user data
-    await adminClient.from("vault_items").delete().eq("user_id", userId);
-    await adminClient.from("secure_notes").delete().eq("user_id", userId);
-    await adminClient.from("secure_wallet").delete().eq("user_id", userId);
-
-    // 2. Delete the auth user itself
-    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
-    if (deleteError) {
-      console.error("Failed to delete auth user:", deleteError);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    for (const table of ["vault_documents", "vault_items", "secure_notes", "secure_wallet"] as const) {
+      const { error } = await admin.from(table).delete().eq("user_id", user.id);
+      if (error) throw error;
     }
+
+    const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id);
+    if (deleteUserError) throw deleteUserError;
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("Delete account error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (error) {
+    console.error("Delete account failed:", error);
+    return serverError();
   }
 }

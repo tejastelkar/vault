@@ -15,19 +15,13 @@ import { BankVault } from "@/components/BankVault";
 import { Settings } from "@/components/settings/Settings";
 import { MobileVaultMenu } from "@/components/MobileVaultMenu";
 import { GlobalMagicImport } from "@/components/GlobalMagicImport";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { getCache } from "@/lib/vaultCache";
-import { clearLocalVaultSession, SESSION_MASTER_KEY } from "@/lib/vaultSession";
+import { clearLocalVaultSession } from "@/lib/vaultSession";
 import { useAutoLock } from "@/hooks/useAutoLock";
 import { useConnectivity } from "@/hooks/useConnectivity";
 import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { aiSearchVault } from "./actions";
+import { getVaultAccessToken } from "@/lib/authToken";
 import { User } from "@supabase/supabase-js";
 import {
   KeyRoundIcon,
@@ -47,7 +41,6 @@ import {
   ArrowRightIcon,
   HashIcon,
   BuildingIcon,
-  MoreHorizontalIcon,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -135,20 +128,13 @@ export default function Home() {
   const headerSearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    clearLocalVaultSession();
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user ?? null;
       setSessionUser(user);
 
       if (user) {
-        // 1. Try session memory (sessionStorage) -- survives refresh, cleared on tab close
-        const sessionMaster = sessionStorage.getItem(SESSION_MASTER_KEY);
-        if (sessionMaster) {
-          setMasterPassword(sessionMaster);
-          setLoading(false);
-          return;
-        }
-
-        // 2. Show PIN lock if enrolled
+        // The raw master key is never restored from browser storage.
         if (hasPinLock()) {
           setShowPinLock(true);
           setLoading(false);
@@ -162,7 +148,7 @@ export default function Home() {
       setSessionUser(session?.user ?? null);
       if (event === "SIGNED_OUT") {
         setMasterPassword(null);
-        sessionStorage.removeItem(SESSION_MASTER_KEY);
+        clearLocalVaultSession();
       }
     });
     return () => subscription.unsubscribe();
@@ -196,8 +182,6 @@ export default function Home() {
     setMasterPassword(masterPass);
     setShowPinLock(false);
     setShowFullAuth(false);
-    // Store in sessionStorage so refresh doesn't re-prompt
-    sessionStorage.setItem(SESSION_MASTER_KEY, masterPass);
   };
 
   const handleLogout = async () => {
@@ -206,7 +190,6 @@ export default function Home() {
     setMasterPassword(null);
     setShowPinLock(false);
     setShowFullAuth(false);
-    sessionStorage.removeItem(SESSION_MASTER_KEY);
   };
 
   const handleLockVault = useCallback(() => {
@@ -277,7 +260,7 @@ export default function Home() {
 
     try {
       const items = await collectSearchItems();
-      const matchedId = await aiSearchVault(currentQuery, items);
+      const matchedId = await aiSearchVault(await getVaultAccessToken(), currentQuery, items);
       if (matchedId) {
         const match = items.find(i => i.id === matchedId);
         if (match) {
@@ -306,7 +289,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <ShieldCheckIcon className="w-8 h-8 text-primary opacity-60" />
       </div>
     );
@@ -318,7 +301,6 @@ export default function Home() {
       <PinLock
         onUnlock={(mk) => {
           setMasterPassword(mk);
-          sessionStorage.setItem(SESSION_MASTER_KEY, mk);
         }}
         onFallback={() => {
           setShowPinLock(false);
@@ -343,7 +325,7 @@ export default function Home() {
   const activeTitle = ALL_TABS_WITH_PROFILE.find((item) => item.tab === activeTab)?.label ?? "Dashboard";
 
   return (
-    <div className="ios-app-shell apple-app flex h-screen w-full overflow-hidden">
+    <div className="ios-app-shell apple-app flex h-dvh w-full overflow-hidden">
       <ConnectivityBanner isOnline={connectivity.isOnline} />
 
       {/* ── Sidebar ─────────────────────────────────────────── */}
