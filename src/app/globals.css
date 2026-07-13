@@ -291,6 +291,96 @@
   .vault-context-menu { display: none; }
   .vault-context-action { min-height: 52px; border-radius: 13px; font-size: 16px; }
 }
+
+.vault-settings { width: 100%; max-width: 1080px; margin-inline: auto; border-radius: 24px; }
+.settings-page-header { margin-bottom: 22px; }
+.settings-page-header h1 { margin-top: 3px; font-size: clamp(28px, 4vw, 36px); font-weight: 760; letter-spacing: -.045em; }
+.settings-page-header > p:last-child { margin-top: 5px; color: var(--muted-foreground); font-size: 14px; }
+.settings-layout { display: grid; min-width: 0; grid-template-columns: 238px minmax(0, 1fr); gap: 24px; align-items: start; }
+.settings-sidebar { position: sticky; top: 18px; min-width: 0; }
+.settings-navigation { border-radius: 18px; }
+.settings-navigation-row { position: relative; display: flex; width: 100%; min-height: 62px; align-items: center; gap: 11px; padding: 9px 12px; color: var(--foreground); text-align: left; }
+.settings-navigation-row + .settings-navigation-row { border-top: 1px solid var(--separator); }
+.settings-navigation-row.is-active { background: color-mix(in srgb, var(--primary) 10%, transparent) !important; color: var(--primary); }
+.settings-navigation-row.is-destructive:not(.is-active) { color: var(--destructive); }
+.settings-navigation-icon, .settings-row-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 10px; background: var(--fill-tertiary); color: currentColor; }
+.settings-navigation-icon svg, .settings-row-icon svg { width: 17px; height: 17px; }
+.settings-navigation-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
+.settings-navigation-copy strong { font-size: 14px; font-weight: 650; }
+.settings-navigation-copy small { overflow: hidden; color: var(--muted-foreground); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.settings-navigation-chevron { display: none; width: 16px; height: 16px; color: var(--muted-foreground); }
+.settings-detail { min-width: 0; }
+.settings-mobile-back { display: none; }
+.settings-detail-section > header { margin-bottom: 18px; }
+.settings-detail-section > header h2 { margin-top: 4px; font-size: 25px; font-weight: 730; letter-spacing: -.035em; }
+.settings-detail-section > header > p:last-child { margin-top: 5px; color: var(--muted-foreground); font-size: 14px; }
+.settings-group { overflow: hidden; border: 1px solid var(--separator); border-radius: 20px; background: var(--elevated-bg); box-shadow: 0 12px 34px rgba(0,0,0,.045); }
+.settings-account-card { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 24px; padding: 24px; }
+.settings-avatar-column { display: flex; flex-direction: column; align-items: center; }
+.settings-avatar { position: relative; display: grid; width: 88px; height: 88px; overflow: hidden; place-items: center; border: 1px solid var(--separator); border-radius: 999px; background: var(--fill-tertiary); color: var(--muted-foreground); }
+.settings-avatar > img { width: 100%; height: 100%; object-fit: cover; }
+.settings-avatar > svg { width: 34px; height: 34px; }
+.settings-avatar > span, .settings-avatar > i { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.38); color: white; opacity: 0; transition: opacity var(--motion-fast) ease; }
+.settings-avatar:hover > span, .settings-avatar:focus-visible > span, .settings-avatar > i { opacity: 1; }
+.settings-avatar > span svg, .settings-avatar > i svg { width: 20px; height: 20px; }
+.settings-photo-link { min-height: 40px; color: var(--primary); font-size: 13px; font-weight: 650; }
+.settings-account-fields { min-width: 0; }
+.settings-value-row { display: grid; min-height: 58px; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--separator); }
+.settings-value-row > span { color: var(--muted-foreground); font-size: 13px; }
+.settings-value-row > strong, .settings-value-row > input { min-width: 0; overflow: hidden; background: transparent; color: var(--foreground); font-size: 15px; font-weight: 560; text-overflow: ellipsis; outline: none; }
+.settings-value-row > input:focus { color: var(--primary); }
+.settings-inline-error { margin: 12px 14px 0; color: var(--destructive); font-size: 13px; }
+.settings-form-actions { display: flex; justify-content: flex-end; padding-top: 16px; }
+.settings-primary-button { min-height: 44px; border-radius: 12px; padding-inline: 18px; font-weight: 650; }
+.settings-account-skeleton { min-height: 260px; border-radius: 20px; background: linear-gradient(100deg,var(--muted) 30%,color-mix(in srgb,var(--muted) 55%,white) 45%,var(--muted) 60%); background-size: 220% 100%; animation: settings-skeleton 1.3s linear infinite; }
+@keyframes settings-skeleton { to { background-position-x: -220%; } }
+.settings-theme-segment { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; padding: 5px; border-radius: 16px; background: var(--fill-tertiary); }
+.settings-theme-segment > button { position: relative; display: flex; min-height: 48px; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; color: var(--muted-foreground); font-size: 14px; font-weight: 650; }
+.settings-theme-segment > button.is-active { background: var(--elevated-bg); color: var(--foreground); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+.settings-theme-segment svg { width: 17px; height: 17px; }
+.settings-theme-check { position: absolute; top: 7px; right: 7px; width: 12px !important; height: 12px !important; color: var(--primary); }
+.settings-appearance-preview { display: grid; min-height: 230px; grid-template-columns: 88px 1fr; margin-top: 18px; overflow: hidden; border: 1px solid var(--separator); border-radius: 20px; background: var(--grouped-bg); box-shadow: inset 0 1px rgba(255,255,255,.08); }
+.settings-preview-sidebar { display: grid; align-content: start; gap: 10px; padding: 24px 12px; border-right: 1px solid var(--separator); background: color-mix(in srgb,var(--elevated-bg) 84%,transparent); }
+.settings-preview-sidebar i { height: 9px; border-radius: 999px; background: var(--muted); }
+.settings-preview-content { padding: 28px; }
+.settings-preview-content > span { display: block; width: 42%; height: 9px; border-radius: 999px; background: var(--muted-foreground); opacity: .45; }
+.settings-preview-content > strong { display: block; width: 66%; height: 22px; margin-top: 12px; border-radius: 7px; background: var(--foreground); opacity: .9; }
+.settings-preview-content > p { width: 82%; height: 9px; margin-top: 12px; border-radius: 999px; background: var(--muted); }
+.settings-preview-content > div { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-top: 26px; }
+.settings-preview-content > div i { height: 86px; border: 1px solid var(--separator); border-radius: 15px; background: var(--elevated-bg); }
+.settings-theme-mobile { display: none; }
+
+@media (max-width: 767px) {
+  .vault-settings { min-height: 100%; border-radius: 0; background: transparent; }
+  .settings-page-header { margin-bottom: 18px; }
+  .settings-page-header h1 { font-size: 32px; }
+  .settings-layout { display: block; }
+  .settings-sidebar { position: static; }
+  .settings-detail { display: none; }
+  .vault-settings.has-mobile-selection .settings-page-header, .vault-settings.has-mobile-selection .settings-sidebar { display: none; }
+  .vault-settings.has-mobile-selection .settings-detail { display: block; }
+  .settings-navigation-row { min-height: 68px; padding: 10px 14px; }
+  .settings-navigation-row.is-active { background: var(--elevated-bg) !important; color: inherit; }
+  .settings-navigation-chevron { display: block; }
+  .settings-navigation-copy strong { font-size: 16px; }
+  .settings-navigation-copy small { font-size: 12px; }
+  .settings-mobile-back { display: inline-flex; min-height: 44px; align-items: center; gap: 2px; margin: -8px 0 10px -9px; border-radius: 10px; padding: 0 8px; color: var(--primary); font-size: 16px; font-weight: 580; }
+  .settings-mobile-back svg { width: 21px; height: 21px; }
+  .settings-detail-section > header h2 { font-size: 28px; }
+  .settings-account-card { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
+  .settings-avatar { width: 82px; height: 82px; }
+  .settings-value-row { grid-template-columns: 1fr; gap: 4px; padding: 12px 2px; }
+  .settings-value-row > span { font-size: 12px; }
+  .settings-form-actions .settings-primary-button { width: 100%; }
+  .settings-theme-segment, .settings-appearance-preview { display: none; }
+  .settings-theme-mobile { display: block; }
+  .settings-choice-row { display: flex; width: 100%; min-height: 62px; align-items: center; gap: 12px; padding: 9px 14px; text-align: left; }
+  .settings-choice-row + .settings-choice-row { border-top: 1px solid var(--separator); }
+  .settings-choice-row > span:nth-child(2) { display: grid; min-width: 0; flex: 1; gap: 2px; }
+  .settings-choice-row strong { font-size: 16px; }
+  .settings-choice-row small { color: var(--muted-foreground); font-size: 12px; }
+  .settings-choice-check { width: 18px; height: 18px; color: var(--primary); }
+}
 @media (min-width: 768px) {
   .wallet-workspace { grid-template-columns: minmax(0, 640px) minmax(300px, 360px); }
   .apple-bank-master-detail { display: grid; grid-template-columns: minmax(280px, .82fr) minmax(360px, 1.18fr); align-items: start; gap: 24px; }

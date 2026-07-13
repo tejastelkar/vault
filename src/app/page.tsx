@@ -12,7 +12,7 @@ import { DocumentVault } from "@/components/DocumentVault";
 import { NotesVault } from "@/components/NotesVault";
 import { WalletVault } from "@/components/WalletVault";
 import { BankVault } from "@/components/BankVault";
-import { Profile } from "@/components/Profile";
+import { Settings } from "@/components/settings/Settings";
 import { GlobalMagicImport } from "@/components/GlobalMagicImport";
 import {
   DropdownMenu,
@@ -21,8 +21,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { clearAllCaches, getCache } from "@/lib/vaultCache";
-import { clearKeyCache } from "@/lib/keyCache";
+import { getCache } from "@/lib/vaultCache";
+import { clearLocalVaultSession, SESSION_MASTER_KEY } from "@/lib/vaultSession";
 import { aiSearchVault } from "./actions";
 import { User } from "@supabase/supabase-js";
 import {
@@ -102,11 +102,8 @@ const NAV_SECTIONS = [
 // All tabs for header title lookup and search (includes profile)
 const ALL_TABS_WITH_PROFILE = [
   ...NAV_SECTIONS.flatMap(s => s.items),
-  { tab: "profile" as Tab, icon: UserCircleIcon, label: "Profile" },
+  { tab: "profile" as Tab, icon: UserCircleIcon, label: "Settings" },
 ];
-
-// Key used to store the master password in sessionStorage (cleared on tab close)
-const SESSION_MASTER_KEY = "vault_session_master";
 
 export default function Home() {
   const prefersReducedMotion = useReducedMotion();
@@ -197,13 +194,22 @@ export default function Home() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    clearAllCaches();
-    clearKeyCache();
+    clearLocalVaultSession();
     setMasterPassword(null);
     setShowPinLock(false);
     setShowFullAuth(false);
     sessionStorage.removeItem(SESSION_MASTER_KEY);
   };
+
+  const handleLockVault = useCallback(() => {
+    clearLocalVaultSession();
+    setMasterPassword(null);
+    const pinEnabled = hasPinLock();
+    setShowPinLock(pinEnabled);
+    setShowFullAuth(!pinEnabled);
+    setSearchOpen(false);
+    setIsGlobalImportOpen(false);
+  }, []);
 
   const handleNavigate = useCallback((tab: Tab, id?: string) => {
     setActiveTab(tab);
@@ -639,7 +645,7 @@ export default function Home() {
             <div style={{ display: activeTab === "notes"     ? undefined : "none" }}><NotesVault {...sharedProps} /></div>
             <div style={{ display: activeTab === "wallet"    ? undefined : "none" }}><WalletVault {...sharedProps} /></div>
             <div style={{ display: activeTab === "banks"     ? undefined : "none" }}><BankVault {...sharedProps} /></div>
-            <div style={{ display: activeTab === "profile"   ? undefined : "none" }}><Profile onLogout={handleLogout} /></div>
+            <div style={{ display: activeTab === "profile"   ? undefined : "none" }}><Settings masterPassword={masterPassword} onLock={handleLockVault} /></div>
           </div>
         </div>
 
