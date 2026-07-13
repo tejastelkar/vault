@@ -469,8 +469,6 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
 
       {loading ? (
         <WalletSkeleton />
-      ) : items.length === 0 ? (
-        <EmptyState type="wallet" onCta={() => setIsAddOpen(true)} />
       ) : (
         <section className="wallet-page">
           <header className="wallet-page-header vault-section-toolbar">
@@ -492,6 +490,10 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
             </div>
           </header>
 
+          {items.length === 0 ? (
+            <EmptyState type="wallet" onCta={() => setIsAddOpen(true)} />
+          ) : (
+            <>
           <div className="wallet-segmented" role="tablist" aria-label="Card type">
             {(["all", "credit", "debit"] as WalletFilter[]).map((filter) => (
               <button
@@ -547,6 +549,8 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
               <p>No cards in this category.</p>
               <button type="button" onClick={() => setWalletFilter("all")}>Show all cards</button>
             </div>
+          )}
+            </>
           )}
         </section>
       )}

@@ -67,8 +67,9 @@ export function EmptyState({ type, onCta }: EmptyStateProps) {
 
       {onCta && (
         <button
+          type="button"
           onClick={onCta}
-          className="text-[15px] font-semibold text-primary hover:opacity-75 transition-opacity"
+          className={`text-[15px] font-semibold text-primary hover:opacity-75 transition-opacity ${type === "wallet" ? "min-h-11 px-3 md:min-h-0 md:px-0" : ""}`}
         >
           {cfg.cta}
         </button>
