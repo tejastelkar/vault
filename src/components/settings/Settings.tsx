@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeftIcon } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { AccountSettings } from "@/components/settings/AccountSettings";
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
 import { SettingsNavigation } from "@/components/settings/SettingsNavigation";
@@ -20,13 +21,25 @@ export function Settings({ masterPassword, onLock }: SettingsProps) {
       <header className="settings-page-header"><p className="type-group-label">Telkar Vault</p><h1>Settings</h1><p>Account, security and preferences for this device.</p></header>
       <div className="settings-layout">
         <aside className="settings-sidebar"><SettingsNavigation selected={active} onSelect={setSelected} /></aside>
-        <main className="settings-detail">
+        <main className="settings-detail overflow-hidden relative">
           <button type="button" className="settings-mobile-back system-interactive" onClick={() => setSelected(null)}><ChevronLeftIcon aria-hidden="true" />Settings</button>
-          {active === "account" && <AccountSettings />}
-          {active === "appearance" && <AppearanceSettings />}
-          {active === "security" && <SecuritySettings masterPassword={masterPassword} onLock={onLock} />}
-          {active === "backup" && <BackupSettings />}
-          {active === "danger" && <DangerSettings masterPassword={masterPassword} />}
+          
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+            >
+              {active === "account" && <AccountSettings />}
+              {active === "appearance" && <AppearanceSettings />}
+              {active === "security" && <SecuritySettings masterPassword={masterPassword} onLock={onLock} />}
+              {active === "backup" && <BackupSettings />}
+              {active === "danger" && <DangerSettings masterPassword={masterPassword} />}
+            </motion.div>
+          </AnimatePresence>
+          
           <span className="sr-only">{meta.label}</span>
         </main>
       </div>
