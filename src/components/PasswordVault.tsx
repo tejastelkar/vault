@@ -460,13 +460,15 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between gap-3 mb-5 sm:mb-8">
-        <h2 className="hidden md:block type-section-title">Passwords</h2>
+      <div className="vault-section-toolbar">
+        <div className="vault-section-heading">
+          <h2 className="type-section-title">Passwords</h2>
+        </div>
         
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="vault-section-actions">
           {items.length > 0 && (
             <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
+            <DropdownMenuTrigger className="vault-section-overflow rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
               <MoreHorizontalIcon className="w-5 h-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-xl">
@@ -508,7 +510,7 @@ export function PasswordVault({ masterPassword, focusedItemId }: { masterPasswor
           )}
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger className="rounded-full h-9 px-4 sm:px-5 font-semibold text-[14px] flex items-center gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 outline-none">
+            <DialogTrigger className="vault-section-primary-action rounded-full h-9 px-4 sm:px-5 font-semibold text-[14px] flex items-center gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 outline-none">
               <PlusIcon className="w-4 h-4" />
               <span className="hidden min-[380px]:inline">New</span>
             </DialogTrigger>

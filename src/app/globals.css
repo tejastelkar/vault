@@ -94,6 +94,7 @@
 .apple-selection-toolbar button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
 .wallet-page { width: 100%; max-width: 1080px; margin-inline: auto; }
 .wallet-page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.wallet-page-heading { display: block; }
 .wallet-page-eyebrow { color: var(--muted-foreground); font-size: 12px; font-weight: 650; }
 .wallet-page-title { font-size: 24px; font-weight: 720; letter-spacing: -.035em; }
 .wallet-page-actions { display: flex; align-items: center; gap: 8px; }
@@ -102,6 +103,11 @@
 .wallet-page-actions button:hover { background: color-mix(in srgb, var(--system-blue) 12%, transparent); }
 .wallet-page-actions button:last-child:hover { background: color-mix(in srgb, var(--system-blue) 86%, black); }
 .wallet-page-actions button:active { transform: scale(.96); }
+.vault-section-toolbar { display: flex; min-height: 44px; align-items: center; gap: 12px; margin-bottom: 20px; }
+.vault-section-heading { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.vault-section-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; margin-left: auto; }
+.vault-section-overflow { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 999px; color: var(--muted-foreground); }
+.vault-section-primary-action { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; padding: 0 16px; background: var(--system-blue); color: white; font-size: 14px; font-weight: 650; }
 .wallet-page-actions button:focus-visible,
 .wallet-segmented button:focus-visible,
 .wallet-details button:focus-visible,
@@ -173,6 +179,11 @@
   .wallet-page-title { font-size: 22px; }
   .wallet-page-actions { gap: 2px; }
   .wallet-page-actions button { padding-inline: 11px; }
+  .vault-section-toolbar { justify-content: flex-end; margin-bottom: 18px; }
+  .vault-section-heading { display: none; }
+  .vault-section-actions { width: auto; margin-left: auto; }
+  .vault-section-overflow { width: 44px; height: 44px; }
+  .vault-section-primary-action { min-height: 44px; }
   .wallet-segmented { position: sticky; top: 0; z-index: 30; width: 100%; margin-bottom: 18px; background: color-mix(in srgb, var(--elevated-bg) 88%, transparent); -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); }
   .wallet-workspace { display: block; }
   .wallet-inspector { display: none; }

@@ -473,12 +473,12 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
         <EmptyState type="wallet" onCta={() => setIsAddOpen(true)} />
       ) : (
         <section className="wallet-page">
-          <header className="wallet-page-header">
-            <div>
+          <header className="wallet-page-header vault-section-toolbar">
+            <div className="wallet-page-heading vault-section-heading">
               <p className="wallet-page-eyebrow">{items.length} saved cards</p>
               <h2 className="wallet-page-title">Digital Wallet</h2>
             </div>
-            <div className="wallet-page-actions">
+            <div className="wallet-page-actions vault-section-actions">
               <button
                 type="button"
                 onClick={() => {
@@ -488,7 +488,7 @@ export function WalletVault({ masterPassword, focusedItemId }: { masterPassword:
               >
                 {isSelectionMode ? "Cancel" : "Select"}
               </button>
-              <button type="button" onClick={() => setIsAddOpen(true)}>Add card</button>
+              <button type="button" className="vault-section-primary-action" onClick={() => setIsAddOpen(true)}>Add card</button>
             </div>
           </header>
 

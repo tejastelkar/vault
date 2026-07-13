@@ -261,19 +261,19 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
 
   return (
     <div className="apple-surface w-full">
-      <div className="flex items-center justify-between gap-3 mb-5 sm:mb-8">
-        <div className="flex items-center gap-3">
-          <h2 className="hidden md:block type-section-title">Documents</h2>
+      <div className="vault-section-toolbar">
+        <div className="vault-section-heading">
+          <h2 className="type-section-title">Documents</h2>
           {isSelectionMode && (
             <span className="text-[13px] font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full">
               {selectedIds.size} selected
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="vault-section-actions">
           {documents.length > 0 && (
             <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
+            <DropdownMenuTrigger className="vault-section-overflow rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
               <MoreHorizontalIcon className="w-5 h-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-xl">
@@ -309,7 +309,7 @@ export function DocumentVault({ masterPassword, focusedItemId }: { masterPasswor
           )}
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger render={<Button variant="ghost" className="rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5" />}>
+            <DialogTrigger render={<Button variant="ghost" className="vault-section-primary-action rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5" />}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
               Upload
             </DialogTrigger>

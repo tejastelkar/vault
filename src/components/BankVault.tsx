@@ -329,13 +329,15 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
 
   return (
     <div className="apple-surface w-full relative" style={{ perspective: "1500px" }}>
-      <div className="flex items-center justify-between gap-3 mb-5 sm:mb-8">
-        <h2 className="hidden md:block type-section-title">Bank Accounts</h2>
+      <div className="vault-section-toolbar">
+        <div className="vault-section-heading">
+          <h2 className="type-section-title">Bank Accounts</h2>
+        </div>
         
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="vault-section-actions">
           {items.length > 0 && (
             <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
+            <DropdownMenuTrigger className="vault-section-overflow rounded-full w-9 h-9 p-0 text-muted-foreground hover:bg-muted/80 flex items-center justify-center">
               <MoreHorizontalIcon className="w-5 h-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-xl">
@@ -371,7 +373,7 @@ export function BankVault({ masterPassword, focusedItemId }: { masterPassword: s
           )}
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger className="rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px] shrink-0">
+            <DialogTrigger className="vault-section-primary-action rounded-full h-9 px-3 sm:px-4 text-primary hover:bg-primary/10 hover:text-primary font-medium flex items-center gap-1.5 text-[14px] shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                 Add Account
             </DialogTrigger>
