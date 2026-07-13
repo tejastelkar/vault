@@ -13,6 +13,7 @@ import { NotesVault } from "@/components/NotesVault";
 import { WalletVault } from "@/components/WalletVault";
 import { BankVault } from "@/components/BankVault";
 import { Settings } from "@/components/settings/Settings";
+import { MobileVaultMenu } from "@/components/MobileVaultMenu";
 import { GlobalMagicImport } from "@/components/GlobalMagicImport";
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getCache } from "@/lib/vaultCache";
 import { clearLocalVaultSession, SESSION_MASTER_KEY } from "@/lib/vaultSession";
+import { useAutoLock } from "@/hooks/useAutoLock";
 import { aiSearchVault } from "./actions";
 import { User } from "@supabase/supabase-js";
 import {
@@ -116,7 +118,7 @@ export default function Home() {
   const [showFullAuth, setShowFullAuth] = useState(false);
 
   // Theme
-  const { setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -210,6 +212,8 @@ export default function Home() {
     setSearchOpen(false);
     setIsGlobalImportOpen(false);
   }, []);
+
+  useAutoLock({ enabled: Boolean(sessionUser && masterPassword), onLock: handleLockVault });
 
   const handleNavigate = useCallback((tab: Tab, id?: string) => {
     setActiveTab(tab);
@@ -437,15 +441,18 @@ export default function Home() {
               <span className={activeTab === "profile" ? "is-active" : ""}>{avatarUrl ? <img src={avatarUrl} alt="" /> : avatarLetter}</span>
             </button>
             <button type="button" onClick={() => setSearchOpen(true)} className="vault-header-icon vault-header-mobile-search" aria-label="Search"><SearchIcon /></button>
-            <DropdownMenu>
-              <DropdownMenuTrigger className="vault-header-icon vault-header-more" aria-label="More actions"><MoreHorizontalIcon /></DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="vault-header-menu">
-                <DropdownMenuItem onClick={() => setIsGlobalImportOpen(true)}><Wand2Icon />Magic Import</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>{resolvedTheme === "dark" ? <SunIcon /> : <MoonIcon />}{resolvedTheme === "dark" ? "Light appearance" : "Dark appearance"}</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleNavigate("profile")}><UserCircleIcon />Profile</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="md:hidden"><MobileVaultMenu theme={theme} setTheme={setTheme} onNavigateBanks={() => handleNavigate("banks")} onNavigateSettings={() => handleNavigate("profile")} onMagicImport={() => setIsGlobalImportOpen(true)} onLock={handleLockVault} /></div>
+            <div className="hidden md:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger className="vault-header-icon vault-header-more md:!grid" aria-label="More actions"><MoreHorizontalIcon /></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="vault-header-menu">
+                  <DropdownMenuItem onClick={() => setIsGlobalImportOpen(true)}><Wand2Icon />Magic Import</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>{resolvedTheme === "dark" ? <SunIcon /> : <MoonIcon />}{resolvedTheme === "dark" ? "Light appearance" : "Dark appearance"}</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleNavigate("profile")}><UserCircleIcon />Settings</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 
