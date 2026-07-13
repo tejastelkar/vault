@@ -1,5 +1,10 @@
 "use server";
 
+import type { GlobalImportResult, ImportExtractionResponse } from "@/lib/import/types";
+import { isGlobalImportResult, normalizeImportResult } from "@/lib/import/normalize";
+
+export type { GlobalImportResult } from "@/lib/import/types";
+
 export async function analyzeImageName(base64Image: string, mimeType: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -201,7 +206,7 @@ export async function aiSearchVault(query: string, items: { id: string; type: st
   }
 }
 
-export async function parseNotesToPasswords(rawText: string): Promise<any[]> {
+export async function parseNotesToPasswords(rawText: string): Promise<Array<Record<string, unknown>>> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set");
@@ -245,7 +250,7 @@ export async function parseNotesToPasswords(rawText: string): Promise<any[]> {
   }
 }
 
-export async function parseBulkNotes(rawText: string): Promise<any[]> {
+export async function parseBulkNotes(rawText: string): Promise<Array<Record<string, unknown>>> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not set");
@@ -288,13 +293,6 @@ export async function parseBulkNotes(rawText: string): Promise<any[]> {
     return [];
   }
 }
-
-export type GlobalImportResult = {
-  passwords: any[];
-  notes: any[];
-  bank_accounts: any[];
-  credit_cards: any[];
-};
 
 export async function parseGlobalBulkData(rawText: string): Promise<GlobalImportResult> {
   const apiKey = process.env.GROQ_API_KEY;
@@ -374,5 +372,18 @@ CRITICAL RULES:
   } catch (err) {
     console.error("Failed to parse AI JSON response", err);
     return { passwords: [], notes: [], bank_accounts: [], credit_cards: [] };
+  }
+}
+
+export async function extractGlobalImportDrafts(rawText: string): Promise<ImportExtractionResponse> {
+  if (!rawText.trim()) return { ok: false, code: "INVALID_INPUT", message: "Paste some vault data before analyzing it." };
+  try {
+    const result = await parseGlobalBulkData(rawText);
+    if (!isGlobalImportResult(result)) return { ok: false, code: "EXTRACTION_FAILED", message: "The extracted data did not match the expected vault format." };
+    const drafts = normalizeImportResult(result, "Pasted text");
+    if (!drafts.length) return { ok: false, code: "EXTRACTION_FAILED", message: "No supported vault items were detected." };
+    return { ok: true, drafts };
+  } catch (error) {
+    return { ok: false, code: "EXTRACTION_FAILED", message: error instanceof Error ? error.message : "The pasted data could not be analyzed." };
   }
 }
