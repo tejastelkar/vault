@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabase, supabasePublishableKey, supabaseUrl } from "@/lib/supabase";
+import { putUserPasswordWithToken } from "@/lib/auth/updateUserWithToken";
 import { captureAccessTokenForExpectedUser, createCapturedAccessTokenProvider } from "@/lib/vaultKeyOwnership";
 
 export async function getVaultAccessToken() {
@@ -40,4 +41,13 @@ export async function getExpectedUserAuthorization(expectedUserId: string) {
     accessToken: createCapturedAccessTokenProvider(accessToken),
   });
   return { accessToken, userClient };
+}
+
+export async function updateExpectedUserPassword(accessToken: string, password: string) {
+  return putUserPasswordWithToken({
+    supabaseUrl,
+    publishableKey: supabasePublishableKey || "placeholder_key",
+    accessToken,
+    password,
+  });
 }

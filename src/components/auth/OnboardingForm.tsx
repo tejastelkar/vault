@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useVaultKey } from "@/components/auth/VaultKeyProvider";
-import { getExpectedUserAuthorization } from "@/lib/authToken";
+import { getExpectedUserAuthorization, updateExpectedUserPassword } from "@/lib/authToken";
 import { supabase } from "@/lib/supabase";
 import styles from "@/app/onboarding/onboarding.module.css";
 
@@ -35,11 +35,10 @@ export function OnboardingForm({ userId, email }: { userId: string; email: strin
 
     setSubmitting(true);
     try {
-      const { userClient } = await getExpectedUserAuthorization(userId);
-      const { error: passwordError } = await userClient.auth.updateUser({ password });
-      if (passwordError) throw new Error(passwordError.message);
+      const { accessToken } = await getExpectedUserAuthorization(userId);
+      await updateExpectedUserPassword(accessToken, password);
 
-      const { data: scopedIdentity, error: scopedIdentityError } = await userClient.auth.getUser();
+      const { data: scopedIdentity, error: scopedIdentityError } = await supabase.auth.getUser(accessToken);
       if (scopedIdentityError || scopedIdentity.user?.id !== userId) {
         throw new Error("Your secure session changed. Sign in again to continue.");
       }

@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { captureAccessTokenForExpectedUser } from "../src/lib/vaultKeyOwnership.ts";
+import { putUserPasswordWithToken } from "../src/lib/auth/updateUserWithToken.ts";
 
 const file = (path) => new URL(`../${path}`, import.meta.url);
 const read = (path) => readFileSync(file(path), "utf8");
@@ -43,7 +44,8 @@ test("onboarding keeps sign-in password and master key as separate secrets", () 
   const source = read(path);
 
   assert.match(source, /getExpectedUserAuthorization\(userId\)/);
-  assert.match(source, /userClient\.auth\.updateUser\(\{\s*password\s*\}\)/);
+  assert.match(source, /updateExpectedUserPassword\(accessToken,\s*password\)/);
+  assert.doesNotMatch(source, /userClient\.auth\./);
   assert.match(source, /JSON\.stringify\(\{\s*completed:\s*true,\s*expectedUserId:\s*userId\s*\}\)/);
   assert.doesNotMatch(source, /JSON\.stringify\([^)]*(?:masterKey|masterPassword)/s);
   assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|document\.cookie/);
@@ -62,8 +64,8 @@ test("onboarding keeps sign-in password and master key as separate secrets", () 
   assert.match(source, /router\.replace\(["']\/vault["']\)/);
 
   const expectedAuthIndex = source.indexOf("getExpectedUserAuthorization(userId)");
-  const passwordIndex = source.indexOf("userClient.auth.updateUser({ password })");
-  const scopedRecheckIndex = source.indexOf("userClient.auth.getUser()");
+  const passwordIndex = source.indexOf("updateExpectedUserPassword(accessToken, password)");
+  const scopedRecheckIndex = source.indexOf("supabase.auth.getUser(accessToken)");
   const activationIndex = source.indexOf('fetch("/api/onboarding/complete"');
   const liveRecheckIndex = source.lastIndexOf("supabase.auth.getUser()");
   const keyIndex = source.indexOf("setMasterKey(masterKey");
@@ -72,6 +74,24 @@ test("onboarding keeps sign-in password and master key as separate secrets", () 
   assert.ok(scopedRecheckIndex < activationIndex, "captured identity must remain valid before activation");
   assert.ok(activationIndex < liveRecheckIndex, "live browser identity must be checked after activation");
   assert.ok(liveRecheckIndex < keyIndex, "live identity must be checked before the local key handoff");
+});
+
+test("expected-user password update uses the captured token without a disabled auth proxy", async () => {
+  const calls = [];
+  await putUserPasswordWithToken({
+    supabaseUrl: "https://example.supabase.co",
+    publishableKey: "publishable-key",
+    accessToken: "captured-token-a",
+    password: "new-password",
+  }, async (input, init) => {
+    calls.push({ input: String(input), init });
+    return new Response(JSON.stringify({ id: "user-a" }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].input, /\/auth\/v1\/user$/);
+  assert.equal(calls[0].init.method, "PUT");
+  assert.equal(new Headers(calls[0].init.headers).get("authorization"), "Bearer captured-token-a");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { password: "new-password" });
 });
 
 test("a stale onboarding page cannot capture a different account token", async () => {
