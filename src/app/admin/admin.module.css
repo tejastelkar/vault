@@ -87,13 +87,13 @@
 .recordCount small { margin-top: 5px; color: var(--admin-muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .filters { display: flex; width: fit-content; max-width: 100%; gap: 4px; margin-top: 50px; overflow-x: auto; border-radius: 14px; padding: 4px; background: color-mix(in srgb, var(--admin-ink) 5%, transparent); scrollbar-width: none; }
 .filters::-webkit-scrollbar { display: none; }
-.filters button { min-height: 36px; flex: 0 0 auto; border-radius: 10px; padding: 0 14px; color: var(--admin-muted); font-size: 12px; font-weight: 620; outline: none; }
+.filters button { min-height: 44px; flex: 0 0 auto; border-radius: 10px; padding: 0 14px; color: var(--admin-muted); font-size: 12px; font-weight: 620; outline: none; }
 .filters button:hover { color: var(--admin-ink); }
 .filters button[data-active] { background: var(--admin-solid); color: var(--admin-ink); box-shadow: 0 1px 4px rgba(0, 0, 0, .11); }
 .filters button:focus-visible { box-shadow: 0 0 0 3px var(--admin-blue); }
 .memberFilter { position: relative; display: grid; width: min(250px, 100%); gap: 7px; margin-top: 50px; }
 .memberFilter > span { color: var(--admin-muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.memberFilter select { width: 100%; min-height: 42px; appearance: none; border: 1px solid var(--admin-line); border-radius: 12px; padding: 0 38px 0 13px; background: var(--admin-solid); color: var(--admin-ink); font: inherit; font-size: 13px; outline: none; }
+.memberFilter select { width: 100%; min-height: 44px; appearance: none; border: 1px solid var(--admin-line); border-radius: 12px; padding: 0 38px 0 13px; background: var(--admin-solid); color: var(--admin-ink); font: inherit; font-size: 13px; outline: none; }
 .memberFilter svg { position: absolute; right: 12px; bottom: 13px; width: 16px; height: 16px; color: var(--admin-muted); pointer-events: none; }
 .memberFilter select:focus-visible { border-color: var(--admin-blue); box-shadow: 0 0 0 4px var(--admin-soft-blue); }
 
@@ -148,6 +148,9 @@
 .loadMore:hover:not(:disabled) { background: var(--admin-blue); color: white; }
 .loadMore:focus-visible { box-shadow: 0 0 0 3px var(--admin-bg), 0 0 0 6px var(--admin-blue); }
 .loadMore:disabled { opacity: .55; }
+.appendError { display: flex; width: min(100%, 560px); align-items: center; justify-content: space-between; gap: 14px; margin: 22px auto 0; border: 1px solid color-mix(in srgb, var(--admin-red) 24%, var(--admin-line)); border-radius: 14px; padding: 10px 12px 10px 14px; background: color-mix(in srgb, var(--admin-red) 6%, var(--admin-solid)); color: var(--admin-muted); font-size: 11px; line-height: 1.4; }
+.appendError button { min-height: 44px; flex: 0 0 auto; border-radius: 10px; padding: 0 13px; background: var(--admin-solid); color: var(--admin-blue); font-size: 12px; font-weight: 680; outline: none; }
+.appendError button:focus-visible { box-shadow: 0 0 0 3px var(--admin-blue); }
 .endNote { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 22px; color: var(--admin-muted); font-size: 11px; }
 .endNote svg { width: 13px; height: 13px; color: var(--admin-green); }
 .activityEmpty { display: grid; min-height: 294px; place-content: center; justify-items: center; padding: 28px; }
@@ -168,7 +171,25 @@
 .skeletonAction { width: 110px; height: 38px; border-radius: 999px; }
 .cardSkeleton { display: none; height: 184px; border-radius: 20px; }
 
-.approvalSheet { color: var(--admin-ink); }
+.approvalSheet {
+  --admin-ink: #1d1d1f;
+  --admin-muted: #6e6e73;
+  --admin-line: rgba(29, 29, 31, 0.11);
+  --admin-blue: #0071e3;
+  --admin-blue-hover: #005bb5;
+  --admin-solid: #ffffff;
+  --admin-soft-blue: rgba(0, 113, 227, 0.1);
+  color: var(--admin-ink);
+}
+:global(.dark) .approvalSheet {
+  --admin-ink: #f5f5f7;
+  --admin-muted: #a1a1a6;
+  --admin-line: rgba(255, 255, 255, 0.12);
+  --admin-blue: #2997ff;
+  --admin-blue-hover: #55adff;
+  --admin-solid: #1c1c1e;
+  --admin-soft-blue: rgba(41, 151, 255, 0.14);
+}
 .approvalBody { display: grid; justify-items: center; padding-top: 28px; padding-bottom: 28px; text-align: center; }
 .approvalIcon { display: grid; width: 52px; height: 52px; place-items: center; border-radius: 17px; background: var(--admin-soft-blue); color: var(--admin-blue); }
 .approvalIcon svg { width: 23px; height: 23px; }
@@ -215,7 +236,7 @@
   .shell { display: block; min-height: 100dvh; }
   .sidebar { display: none; }
   .workspace { height: auto; min-height: 100dvh; overflow: visible; }
-  .topbar { min-height: 66px; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; padding: max(8px, env(safe-area-inset-top)) 16px 8px; }
+  .topbar { min-height: calc(66px + env(safe-area-inset-top, 0px)); grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; padding: env(safe-area-inset-top, 0px) 16px 0; }
   .mobileBrand { display: flex; align-items: center; gap: 8px; }
   .mobileBrand > span { width: 30px; height: 30px; flex: 0 0 auto; }
   .mobileBrand strong { display: none; }
@@ -223,9 +244,9 @@
   .search input { font-size: 16px; }
   .search kbd { display: none; }
   .adminIdentity > span { width: 32px; height: 32px; }
-  .mobileNav { position: sticky; z-index: 19; top: 65px; display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--admin-line); padding: 8px 16px; background: color-mix(in srgb, var(--admin-bg) 86%, transparent); backdrop-filter: blur(22px) saturate(150%); scrollbar-width: none; }
+  .mobileNav { position: sticky; z-index: 19; top: calc(66px + env(safe-area-inset-top, 0px)); display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--admin-line); padding: 8px 16px; background: color-mix(in srgb, var(--admin-bg) 86%, transparent); backdrop-filter: blur(22px) saturate(150%); scrollbar-width: none; }
   .mobileNav::-webkit-scrollbar { display: none; }
-  .mobileNav button { min-width: 74px; min-height: 36px; flex: 1 0 auto; border-radius: 999px; color: var(--admin-muted); font-size: 11px; font-weight: 670; outline: none; }
+  .mobileNav button { min-width: 74px; min-height: 44px; flex: 1 0 auto; border-radius: 999px; color: var(--admin-muted); font-size: 11px; font-weight: 670; outline: none; }
   .mobileNav button[data-active] { background: var(--admin-solid); color: var(--admin-blue); box-shadow: 0 1px 5px rgba(0, 0, 0, .1); }
   .mobileNav button:focus-visible { box-shadow: 0 0 0 3px var(--admin-blue); }
   .content { width: min(calc(100% - 32px), 560px); padding: 44px 0 max(44px, env(safe-area-inset-bottom)); }
@@ -248,6 +269,8 @@
   .skeleton { gap: 12px; }
   .approvalFooter { display: grid; grid-template-columns: 1fr 1.25fr; }
   .secondaryButton, .primaryButton { width: 100%; }
+  .appendError { align-items: stretch; flex-direction: column; }
+  .appendError button { width: 100%; }
 }
 
 @media (max-width: 390px) {

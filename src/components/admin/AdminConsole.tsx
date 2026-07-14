@@ -15,6 +15,7 @@ import { AdminSidebar } from "./AdminSidebar";
 import { AdminSkeleton } from "./AdminSkeleton";
 import { ApprovalSheet } from "./ApprovalSheet";
 import { RequestQueue } from "./RequestQueue";
+import { normalizeAdminSearch } from "./admin-client";
 import {
   isAccessRequest,
   type AdminAccessRequest,
@@ -88,7 +89,8 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
   const view = isAdminView(searchParams.get("view")) ? searchParams.get("view") as AdminView : "pending";
   const pendingFilter = isPendingFilter(searchParams.get("status")) ? searchParams.get("status") as PendingFilter : "pending";
   const memberFilter = isMemberFilter(searchParams.get("status")) ? searchParams.get("status") as MemberFilter : "all";
-  const urlSearch = searchParams.get("search") ?? "";
+  const rawUrlSearch = searchParams.get("search") ?? "";
+  const urlSearch = normalizeAdminSearch(rawUrlSearch);
   const [searchInput, setSearchInput] = useState(urlSearch);
   const [searchQuery, setSearchQuery] = useState(urlSearch);
   const [items, setItems] = useState<AdminRecord[]>([]);
@@ -96,25 +98,35 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
   const [loading, setLoading] = useState(view !== "activity");
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appendError, setAppendError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminAccessRequest | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const pendingUrlSearchRef = useRef<string | null>(null);
+  const queryGenerationRef = useRef(0);
+  const requestControllersRef = useRef<Set<AbortController>>(new Set());
 
-  const updateUrl = useCallback((updates: Record<string, string | null>) => {
+  const updateUrl = useCallback((updates: Record<string, string | null>, history: "push" | "replace" = "replace") => {
     const next = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
       if (value) next.set(key, value);
       else next.delete(key);
     }
     const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    const href = query ? `${pathname}?${query}` : pathname;
+    if (history === "push") router.push(href, { scroll: false });
+    else router.replace(href, { scroll: false });
   }, [pathname, router, searchParams]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      if (rawUrlSearch !== urlSearch) {
+        pendingUrlSearchRef.current = urlSearch;
+        updateUrl({ search: urlSearch || null, cursor: null }, "replace");
+        return;
+      }
       if (pendingUrlSearchRef.current !== null) {
         if (urlSearch === pendingUrlSearchRef.current) pendingUrlSearchRef.current = null;
         return;
@@ -125,31 +137,41 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [searchQuery, urlSearch]);
+  }, [rawUrlSearch, searchQuery, updateUrl, urlSearch]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const normalized = searchInput.trim().slice(0, 100);
+      const normalized = normalizeAdminSearch(searchInput);
       if (normalized === searchQuery) return;
       pendingUrlSearchRef.current = normalized;
+      if (searchInput !== normalized) setSearchInput(normalized);
       setSearchQuery(normalized);
-      updateUrl({ search: normalized || null, cursor: null });
+      updateUrl({ search: normalized || null, cursor: null }, "replace");
     }, 250);
     return () => window.clearTimeout(timer);
   }, [searchInput, searchQuery, updateUrl]);
 
-  const loadPage = useCallback(async (cursor: string | null, append: boolean, signal?: AbortSignal) => {
+  const loadPage = useCallback(async (cursor: string | null, append: boolean, generation = queryGenerationRef.current) => {
     if (view === "activity") {
+      if (generation !== queryGenerationRef.current) return;
       setItems([]);
       setNextCursor(null);
       setLoading(false);
       setError(null);
+      setAppendError(null);
       return;
     }
 
-    if (append) setLoadingMore(true);
-    else setLoading(true);
-    setError(null);
+    const controller = new AbortController();
+    requestControllersRef.current.add(controller);
+    if (append) {
+      setLoadingMore(true);
+      setAppendError(null);
+    } else {
+      setLoading(true);
+      setError(null);
+      setAppendError(null);
+    }
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.set("search", searchQuery);
@@ -159,33 +181,44 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
       if (view === "invited") params.set("status", "invited");
       if (view === "members" && memberFilter !== "all") params.set("status", memberFilter);
 
-      const response = await fetch(`${endpoint}?${params}`, { signal, headers: { accept: "application/json" } });
+      const response = await fetch(`${endpoint}?${params}`, { signal: controller.signal, headers: { accept: "application/json" } });
       if (!response.ok) throw new Error("ADMIN_LIST_FAILED");
       const page = safePage(await response.json());
+      if (generation !== queryGenerationRef.current || controller.signal.aborted) return;
       setItems((current) => append ? [...current, ...page.items] : page.items);
       setNextCursor(page.nextCursor);
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === "AbortError") return;
-      setError("The console could not load this view. Check the connection and try again.");
-      if (!append) setItems([]);
+      if (controller.signal.aborted || generation !== queryGenerationRef.current || (caught instanceof DOMException && caught.name === "AbortError")) return;
+      const message = "The console could not load this view. Check the connection and try again.";
+      if (append) setAppendError(message);
+      else {
+        setError(message);
+        setItems([]);
+      }
     } finally {
+      requestControllersRef.current.delete(controller);
+      if (generation !== queryGenerationRef.current) return;
       if (append) setLoadingMore(false);
       else setLoading(false);
     }
   }, [memberFilter, pendingFilter, searchQuery, view]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => void loadPage(null, false, controller.signal), 0);
+    const generation = ++queryGenerationRef.current;
+    const controllers = requestControllersRef.current;
+    for (const controller of controllers) controller.abort();
+    controllers.clear();
+    const timer = window.setTimeout(() => void loadPage(null, false, generation), 0);
     return () => {
       window.clearTimeout(timer);
-      controller.abort();
+      for (const controller of controllers) controller.abort();
+      controllers.clear();
     };
   }, [loadPage]);
 
   const selectView = (nextView: AdminView) => {
     const status = nextView === "pending" ? "pending" : null;
-    updateUrl({ view: nextView === "pending" ? null : nextView, status, cursor: null });
+    updateUrl({ view: nextView === "pending" ? null : nextView, status, cursor: null }, "push");
   };
 
   const openApproval = (request: AdminAccessRequest, trigger: HTMLButtonElement) => {
@@ -200,6 +233,10 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
       else headingRef.current?.focus();
     });
   };
+
+  const reconcileInvitationState = useCallback(async () => {
+    await loadPage(null, false, queryGenerationRef.current);
+  }, [loadPage]);
 
   const sendInvitation = async () => {
     if (!selected || sendingId) return;
@@ -223,20 +260,37 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
         setItems((current) => current.map((item) => item.id === target.id && isAccessRequest(item) ? { ...item, status: "inviting" } : item));
         setAnnouncement(`Invitation to ${target.fullName} is already sending.`);
         toast({ message: "This invitation is already being sent.", type: "info" });
-      } else {
+      } else if (response.status === 502 && result.status === "invite_failed") {
         const safeCode = typeof result.errorCode === "string" ? result.errorCode : "DELIVERY_FAILED";
         setItems((current) => current.map((item) => item.id === target.id && isAccessRequest(item)
           ? { ...item, status: "invite_failed", lastErrorCode: safeCode as AdminAccessRequest["lastErrorCode"] }
           : item));
         setAnnouncement(`Invitation failed for ${target.fullName}. Retry is available.`);
         toast({ message: "The invitation was not confirmed. Retry is available.", type: "error" });
+      } else if (response.status === 401) {
+        setItems([]);
+        setAnnouncement("Your owner session expired. Sign in again.");
+        toast({ message: "Your owner session expired. Sign in again.", type: "error" });
+        router.replace("/login?next=/admin");
+      } else if (response.status === 403) {
+        setItems([]);
+        setError("This account no longer has access to the owner console.");
+        setAnnouncement("Owner access could not be verified.");
+        toast({ message: "Owner access could not be verified.", type: "error" });
+        router.refresh();
+      } else if (response.status === 404) {
+        setAnnouncement(`${target.fullName} is no longer in this queue.`);
+        toast({ message: "This request is no longer available. The queue was refreshed.", type: "info" });
+        await reconcileInvitationState();
+      } else {
+        setAnnouncement(`The invitation state for ${target.fullName} is being refreshed.`);
+        toast({ message: "The result could not be confirmed. The queue was refreshed.", type: "info" });
+        await reconcileInvitationState();
       }
     } catch {
-      setItems((current) => current.map((item) => item.id === target.id && isAccessRequest(item)
-        ? { ...item, status: "invite_failed", lastErrorCode: "DELIVERY_FAILED" }
-        : item));
-      setAnnouncement(`Invitation failed for ${target.fullName}. Retry is available.`);
-      toast({ message: "The invitation was not confirmed. Retry is available.", type: "error" });
+      setAnnouncement(`The invitation state for ${target.fullName} is being refreshed.`);
+      toast({ message: "The connection dropped before confirmation. The queue was refreshed.", type: "info" });
+      await reconcileInvitationState();
     } finally {
       setSendingId(null);
       closeApproval();
@@ -264,7 +318,7 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
           </header>
 
           <nav className={styles.mobileNav} aria-label="Access console sections">
-            {ADMIN_VIEWS.map((item) => <button type="button" key={item} data-active={view === item || undefined} onClick={() => selectView(item)}>{VIEW_LABELS[item]}</button>)}
+            {ADMIN_VIEWS.map((item) => <button type="button" key={item} aria-current={view === item ? "page" : undefined} data-active={view === item || undefined} onClick={() => selectView(item)}>{VIEW_LABELS[item]}</button>)}
           </nav>
 
           <div className={styles.content}>
@@ -276,7 +330,7 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
             {view === "pending" && (
               <div className={styles.filters} aria-label="Pending request filters">
                 {PENDING_FILTERS.map((filter) => (
-                  <button key={filter} type="button" data-active={pendingFilter === filter || undefined} onClick={() => updateUrl({ status: filter, cursor: null })}>
+                  <button key={filter} type="button" aria-pressed={pendingFilter === filter} data-active={pendingFilter === filter || undefined} onClick={() => updateUrl({ status: filter, cursor: null }, "push")}>
                     {filter === "pending" ? "Awaiting review" : filter === "inviting" ? "Sending" : "Needs retry"}
                   </button>
                 ))}
@@ -285,7 +339,7 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
             {view === "members" && (
               <label className={styles.memberFilter}>
                 <span>Member status</span>
-                <select value={memberFilter} onChange={(event) => updateUrl({ status: event.target.value === "all" ? null : event.target.value, cursor: null })}>
+                <select value={memberFilter} onChange={(event) => updateUrl({ status: event.target.value === "all" ? null : event.target.value, cursor: null }, "push")}>
                   {MEMBER_FILTERS.map((filter) => <option key={filter} value={filter}>{filter === "all" ? "All members" : filter[0].toUpperCase() + filter.slice(1)}</option>)}
                 </select>
                 <ChevronDownIcon aria-hidden="true" />
@@ -305,11 +359,17 @@ export function AdminConsole({ adminEmail }: { adminEmail: string }) {
               )}
             </section>
 
-            {!loading && !error && nextCursor && (
+            {!loading && !error && !appendError && nextCursor && (
               <button className={styles.loadMore} type="button" disabled={loadingMore} onClick={() => void loadPage(nextCursor, true)}>
                 {loadingMore ? "Loading more…" : "Load more"}
                 {!loadingMore && <ChevronDownIcon aria-hidden="true" />}
               </button>
+            )}
+            {!loading && !error && appendError && nextCursor && (
+              <div className={styles.appendError} role="alert">
+                <span>{appendError}</span>
+                <button type="button" onClick={() => void loadPage(nextCursor, true)}>Retry loading more</button>
+              </div>
             )}
             {!loading && !error && !nextCursor && items.length > 0 && <p className={styles.endNote}><CheckCircle2Icon aria-hidden="true" />You’re up to date.</p>}
           </div>

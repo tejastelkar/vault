@@ -69,3 +69,56 @@ test("admin components never expose public signup or post-invite undo", () => {
   assert.doesNotMatch(sources, /sign\s?up|create account|request access/i);
   assert.doesNotMatch(sources, /\bundo\b/i);
 });
+
+test("approval sheet keeps complete theme tokens after it portals to body", () => {
+  const css = read("src/app/admin/admin.module.css");
+  const sheet = css.match(/\.approvalSheet\s*\{([^}]+)\}/)?.[1] ?? "";
+  for (const token of ["--admin-ink", "--admin-muted", "--admin-line", "--admin-blue", "--admin-solid", "--admin-soft-blue"]) {
+    assert.match(sheet, new RegExp(token));
+  }
+  assert.match(css, /:global\(\.dark\) \.approvalSheet/);
+});
+
+test("query generations fence and abort stale initial and append requests", () => {
+  const consoleSource = read("src/components/admin/AdminConsole.tsx");
+  assert.match(consoleSource, /queryGenerationRef/);
+  assert.match(consoleSource, /requestControllersRef/);
+  assert.match(consoleSource, /new AbortController\(\)/);
+  assert.match(consoleSource, /controller\.abort\(\)/);
+  assert.match(consoleSource, /generation !== queryGenerationRef\.current/);
+  assert.match(consoleSource, /appendError/);
+  assert.match(consoleSource, /Retry loading more/);
+});
+
+test("only server-confirmed invitation failure becomes durable Retry state", () => {
+  const consoleSource = read("src/components/admin/AdminConsole.tsx");
+  assert.match(consoleSource, /response\.status === 502/);
+  assert.match(consoleSource, /response\.status === 401/);
+  assert.match(consoleSource, /response\.status === 403/);
+  assert.match(consoleSource, /response\.status === 404/);
+  assert.match(consoleSource, /reconcileInvitationState/);
+  const catchBlock = consoleSource.match(/catch \{([\s\S]*?)\n\s*\} finally/)?.[1] ?? "";
+  assert.doesNotMatch(catchBlock, /status: "invite_failed"/);
+});
+
+test("client search normalization matches the server query allowlist", () => {
+  const helper = read("src/components/admin/admin-client.ts");
+  const consoleSource = read("src/components/admin/AdminConsole.tsx");
+  assert.match(helper, /normalize\("NFKD"\)/);
+  assert.match(helper, /\\p\{Diacritic\}/);
+  assert.match(helper, /\^a-z0-9@\._\+ -/i);
+  assert.match(consoleSource, /normalizeAdminSearch/);
+  assert.match(consoleSource, /rawUrlSearch !== urlSearch/);
+});
+
+test("mobile sticky controls are notch-safe, touch-safe, and expose selection semantics", () => {
+  const css = read("src/app/admin/admin.module.css");
+  const consoleSource = read("src/components/admin/AdminConsole.tsx");
+  assert.match(css, /\.mobileNav\s*\{[^}]*top:\s*calc\([^)]*env\(safe-area-inset-top/s);
+  assert.match(css, /\.mobileNav button\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(css, /\.filters button\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(consoleSource, /router\.push/);
+  assert.match(consoleSource, /router\.replace/);
+  assert.match(consoleSource, /aria-current=/);
+  assert.match(consoleSource, /aria-pressed=/);
+});
