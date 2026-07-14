@@ -49,8 +49,8 @@ test("access request admin list is cursor-only, bounded to 25 DTO rows, and allo
   assert.match(repository, /SAFE_INVITATION_ERROR_CODES/);
   assert.match(repository, /safeInvitationErrorCode\(row\.last_error_code\)/);
   assert.doesNotMatch(repository, /\.select\(\s*"\*"|\.range\(|offset/i);
-  assert.match(route, /\\p\{L\}/);
-  assert.match(route, /\\p\{M\}/);
+  assert.match(route, /UNSAFE_SEARCH/);
+  assert.match(route, /,%\(\)/);
   assert.match(repository, /quotePostgrestFilterValue/);
   assert.match(repository, /full_name\.ilike\.\$\{searchLiteral\},email\.ilike\.\$\{searchLiteral\}/);
 });
@@ -98,7 +98,7 @@ test("member mutation accepts only suspended or revoked and member lists are DTO
   assert.match(route, /status\s*!==\s*"revoked"/);
   assert.match(route, /Object\.keys/);
   assert.match(repository, /MEMBER_PAGE_SIZE\s*=\s*25/);
-  assert.match(listRoute, /\\p\{L\}/);
+  assert.match(listRoute, /UNSAFE_SEARCH/);
   assert.match(repository, /\.select\("user_id,email,status,access_request_id,approved_at,activated_at,created_at"\)/);
   assert.doesNotMatch(repository, /\.select\(\s*"\*"|\.range\(|offset/i);
 });

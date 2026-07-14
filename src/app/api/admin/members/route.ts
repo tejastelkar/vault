@@ -4,7 +4,7 @@ import { AuthorizationError, requireAdmin } from "@/lib/server/access";
 import { listMembersAdmin } from "@/lib/server/access-repository";
 
 const ALLOWED_QUERY_KEYS = new Set(["status", "search", "cursor"]);
-const SAFE_SEARCH = /^[\p{L}\p{M}\p{N}@._+ '\u2019-]{1,100}$/u;
+const UNSAFE_SEARCH = /[,%()":\\\u0000-\u001f\u007f]/u;
 
 function invalidQuery() {
   return Response.json({ error: "INVALID_QUERY" }, { status: 400 });
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
     const rawSearch = params.get("search");
     const search = rawSearch?.trim() || null;
-    if (rawSearch !== null && (!search || !SAFE_SEARCH.test(search))) return invalidQuery();
+    if (rawSearch !== null && (!search || search.length > 100 || UNSAFE_SEARCH.test(search))) return invalidQuery();
 
     const rawCursor = params.get("cursor");
     const cursor = parseInviteCursor(rawCursor);

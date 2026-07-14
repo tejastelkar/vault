@@ -111,6 +111,7 @@ test("client search normalization preserves human names and removes filter gramm
   assert.match(consoleSource, /rawUrlSearch !== urlSearch/);
   const { normalizeAdminSearch } = await import("../src/components/admin/admin-client.ts");
   assert.equal(normalizeAdminSearch("  José O'Connor  "), "José O'Connor");
+  assert.equal(normalizeAdminSearch("R&D"), "R&D");
   assert.equal(normalizeAdminSearch("José,(100%)"), "José100");
 });
 
