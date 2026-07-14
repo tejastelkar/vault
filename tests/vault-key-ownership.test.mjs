@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   canUseVaultWrapper,
+  commitVaultKeyForExpectedUser,
   requireAuthenticatedVaultUserId,
   requireVaultWrapperOwner,
   scopeVaultKeyToAuthenticatedUser,
@@ -12,6 +13,46 @@ import {
 const USER_A = "550e8400-e29b-41d4-a716-446655440000";
 const USER_B = "550e8400-e29b-41d4-a716-446655440001";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+
+test("a stale User A unlock result cannot commit after auth changes to User B", () => {
+  let liveUserId = USER_A;
+  let storedKey = null;
+  let storedOwnerUserId = null;
+  const expectedUserId = liveUserId;
+
+  liveUserId = USER_B;
+  const accepted = commitVaultKeyForExpectedUser(
+    "raw-master-key-a",
+    expectedUserId,
+    liveUserId,
+    (masterKey, ownerUserId) => {
+      storedKey = masterKey;
+      storedOwnerUserId = ownerUserId;
+    },
+  );
+
+  assert.equal(accepted, false);
+  assert.equal(storedKey, null);
+  assert.equal(storedOwnerUserId, null);
+  assert.equal(scopeVaultKeyToAuthenticatedUser(storedKey, storedOwnerUserId, USER_B), null);
+});
+
+test("a same-user unlock result commits to its captured owner", () => {
+  let storedKey = null;
+  let storedOwnerUserId = null;
+  const accepted = commitVaultKeyForExpectedUser(
+    "raw-master-key-a",
+    USER_A,
+    USER_A,
+    (masterKey, ownerUserId) => {
+      storedKey = masterKey;
+      storedOwnerUserId = ownerUserId;
+    },
+  );
+
+  assert.equal(accepted, true);
+  assert.equal(scopeVaultKeyToAuthenticatedUser(storedKey, storedOwnerUserId, USER_A), "raw-master-key-a");
+});
 
 test("an authenticated user change invalidates User A raw and wrapped keys for User B", () => {
   const rawKeyA = "raw-master-key-a";
@@ -66,4 +107,13 @@ test("every PIN and biometric UI call site supplies the authenticated user id", 
 
   const provider = read("src/components/auth/VaultKeyProvider.tsx");
   assert.match(provider, /authenticatedUserId:\s*string \| null/);
+  assert.match(provider, /setMasterKey:\s*\(value:\s*string,\s*expectedUserId:\s*string\)\s*=>\s*boolean/);
+  assert.match(provider, /commitVaultKeyForExpectedUser\([\s\S]*currentUserIdRef\.current/);
+
+  const auth = read("src/components/Auth.tsx");
+  const pinLock = read("src/components/PinLock.tsx");
+  assert.match(auth, /onLogin:\s*\(masterPass:\s*string,\s*expectedUserId:\s*string\)\s*=>\s*boolean/);
+  assert.match(auth, /onLogin\([^,]+,\s*expectedUserId\)/);
+  assert.match(pinLock, /onUnlock:\s*\(masterKey:\s*string,\s*expectedUserId:\s*string\)\s*=>\s*boolean/);
+  assert.match(pinLock, /onUnlock\(masterKey,\s*authenticatedUserId\)/);
 });

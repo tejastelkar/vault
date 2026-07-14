@@ -149,7 +149,7 @@ export async function verifyPinAndRecoverMaster(pin: string, userId: string): Pr
 
 interface PinLockProps {
   authenticatedUserId: string;
-  onUnlock: (masterKey: string) => void;
+  onUnlock: (masterKey: string, expectedUserId: string) => boolean;
   onFallback: () => void;  // Called when user wants to use full login
 }
 
@@ -201,7 +201,9 @@ export function PinLock({ authenticatedUserId, onUnlock, onFallback }: PinLockPr
     setChecking(true);
     try {
       const masterKey = await verifyPinAndRecoverMaster(pin, authenticatedUserId);
-      onUnlock(masterKey);
+      if (!onUnlock(masterKey, authenticatedUserId)) {
+        throw new Error("Your authenticated account changed before the vault finished unlocking.");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to verify PIN. Use your master key.";
       const nextAttempts = Number.parseInt(localStorage.getItem("vault_pin_attempts") || "0", 10);
@@ -312,7 +314,9 @@ export function PinLock({ authenticatedUserId, onUnlock, onFallback }: PinLockPr
                 setChecking(true);
                 try {
                   const masterKey = await unlockWithBiometrics(authenticatedUserId);
-                  onUnlock(masterKey);
+                  if (!onUnlock(masterKey, authenticatedUserId)) {
+                    throw new Error("Your authenticated account changed before the vault finished unlocking.");
+                  }
                 } catch (error: unknown) {
                   setError(error instanceof Error ? error.message : "Biometric unlock failed.");
                   setChecking(false);

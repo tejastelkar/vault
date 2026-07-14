@@ -9,7 +9,7 @@ import { savePinForMaster, hasPinLock } from "@/components/PinLock";
 import { isBiometricsSupported, hasBiometricsEnabled, enableBiometrics, unlockWithBiometrics } from "@/lib/biometrics";
 import { useVaultKey } from "@/components/auth/VaultKeyProvider";
 
-export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
+export function Auth({ onLogin }: { onLogin: (masterPass: string, expectedUserId: string) => boolean }) {
   const { authenticatedUserId } = useVaultKey();
   const [loading, setLoading] = useState(false);
   const [masterPassword, setMasterPassword] = useState("");
@@ -50,6 +50,7 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
 
   // PIN setup state — shown after successful login if no PIN exists yet
   const [pendingMaster, setPendingMaster] = useState<string | null>(null);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [pinSetupPhase, setPinSetupPhase] = useState<"prompt" | "enter" | "confirm">("prompt");
   const [pinDigits, setPinDigits] = useState<string[]>([]);
   const [pinConfirmDigits, setPinConfirmDigits] = useState<string[]>([]);
@@ -69,6 +70,7 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
       setLoading(false);
       return;
     }
+    const expectedUserId = authenticatedUserId;
 
     if (!masterPassword || masterPassword.length < 8) {
       setError("Master key must be at least 8 characters long.");
@@ -77,24 +79,27 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
     }
 
     // If no PIN is set yet, OR if biometrics are supported but not set up, offer to set up.
-    if (!hasPinLock(authenticatedUserId) || (isBioSupported && !hasBio)) {
+    if (!hasPinLock(expectedUserId) || (isBioSupported && !hasBio)) {
       setPendingMaster(masterPassword);
+      setPendingUserId(expectedUserId);
       setPinSetupPhase("prompt");
       setLoading(false);
       return;
     }
 
-    onLogin(masterPassword);
+    if (!onLogin(masterPassword, expectedUserId)) {
+      setError("Your authenticated account changed before the vault finished unlocking.");
+    }
     setLoading(false);
   };
 
   // ── PIN setup helpers ─────────────────────────────────────────────────────
   const handlePinDigit = (digit: string, isConfirm: boolean) => {
-    if (!authenticatedUserId) {
+    if (!pendingUserId || authenticatedUserId !== pendingUserId) {
       setPinError("Your authenticated account could not be verified.");
       return;
     }
-    const userId = authenticatedUserId;
+    const expectedUserId = pendingUserId;
     const current = isConfirm ? pinConfirmDigits : pinDigits;
     const setter = isConfirm ? setPinConfirmDigits : setPinDigits;
     if (current.length >= 6) return;
@@ -116,10 +121,16 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
         } else {
           // Save and unlock
           setSavingPin(true);
-          savePinForMaster(pinStr, pendingMaster!, userId).then(() => {
-            setSavingPin(false);
-            onLogin(pendingMaster!);
-          });
+          void savePinForMaster(pinStr, pendingMaster!, expectedUserId)
+            .then(() => {
+              if (!onLogin(pendingMaster!, expectedUserId)) {
+                setPinError("Your authenticated account changed before the vault finished unlocking.");
+              }
+            })
+            .catch((error: unknown) => {
+              setPinError(error instanceof Error ? error.message : "PIN enrollment failed.");
+            })
+            .finally(() => setSavingPin(false));
         }
       }
     }
@@ -160,9 +171,12 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
                 <button
                   onClick={async () => {
                     try {
-                      if (!authenticatedUserId) throw new Error("Your authenticated account could not be verified.");
-                      await enableBiometrics(pendingMaster!, authenticatedUserId);
-                      onLogin(pendingMaster!);
+                      const expectedUserId = pendingUserId;
+                      if (!expectedUserId || authenticatedUserId !== expectedUserId) throw new Error("Your authenticated account could not be verified.");
+                      await enableBiometrics(pendingMaster!, expectedUserId);
+                      if (!onLogin(pendingMaster!, expectedUserId)) {
+                        throw new Error("Your authenticated account changed before the vault finished unlocking.");
+                      }
                     } catch (error: unknown) {
                       setPinError(error instanceof Error ? error.message : "Biometric enrollment failed.");
                     }
@@ -182,7 +196,11 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
                 Set up PIN
               </button>
               <button
-                onClick={() => onLogin(pendingMaster!)}
+                onClick={() => {
+                  if (!pendingUserId || !onLogin(pendingMaster!, pendingUserId)) {
+                    setPinError("Your authenticated account changed before the vault finished unlocking.");
+                  }
+                }}
                 className="w-full py-3 rounded-xl text-muted-foreground text-[15px] hover:text-foreground transition-colors"
               >
                 Skip for now
@@ -297,9 +315,12 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
             <button
               onClick={async () => {
                 try {
-                  if (!authenticatedUserId) throw new Error("Your authenticated account could not be verified.");
-                  const masterKey = await unlockWithBiometrics(authenticatedUserId);
-                  onLogin(masterKey);
+                  const expectedUserId = authenticatedUserId;
+                  if (!expectedUserId) throw new Error("Your authenticated account could not be verified.");
+                  const masterKey = await unlockWithBiometrics(expectedUserId);
+                  if (!onLogin(masterKey, expectedUserId)) {
+                    throw new Error("Your authenticated account changed before the vault finished unlocking.");
+                  }
                 } catch (error: unknown) {
                   setError(error instanceof Error ? error.message : "Biometric unlock failed.");
                 }

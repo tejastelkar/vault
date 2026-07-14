@@ -64,12 +64,15 @@ test("vault unlock is session-only and preserves PIN and biometrics", () => {
   assert.match(auth, /Master Key/);
   assert.match(auth, /savePinForMaster/);
   assert.match(auth, /unlockWithBiometrics/);
-  assert.match(auth, /onLogin\(masterPassword\)/);
+  assert.match(auth, /onLogin\(masterPassword,\s*expectedUserId\)/);
   assert.match(vaultApp, /if \(!loading\s*&&\s*!sessionUser\)\s*\{[\s\S]*router\.replace\("\/login\?next=\/vault"\)/);
   assert.match(
     vaultApp,
     /if \(loading\s*\|\|\s*!sessionUser\s*\|\|\s*!authenticatedUserId\s*\|\|\s*sessionUser\.id\s*!==\s*authenticatedUserId\)/,
   );
-  assert.match(vaultApp, /if \(!masterPassword\)\s*\{[\s\S]*<Auth onLogin=\{handleLogin\}/);
+  assert.match(vaultApp, /if \(!masterPassword\)\s*\{[\s\S]*<Auth[\s\S]*onLogin=\{handleLogin\}/);
+  assert.match(vaultApp, /setShowPinLock\(pinEnabled\)[\s\S]*setShowFullAuth\(Boolean\(nextUser\)\s*&&\s*!pinEnabled\)/);
+  assert.match(vaultApp, /<PinLock[\s\S]*key=\{authenticatedUserId\}/);
+  assert.match(vaultApp, /<Auth key=\{authenticatedUserId\} onLogin=\{handleLogin\}/);
   assert.doesNotMatch(vaultApp, /if \(!sessionUser\s*\|\|\s*!masterPassword\)[\s\S]*<Auth/);
 });

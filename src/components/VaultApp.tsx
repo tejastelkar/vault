@@ -134,21 +134,18 @@ export default function VaultApp() {
     clearLocalVaultSession();
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user ?? null;
+      const pinEnabled = Boolean(user && hasPinLock(user.id));
       setSessionUser(user);
-
-      if (user) {
-        // The raw master key is never restored from browser storage.
-        if (hasPinLock(user.id)) {
-          setShowPinLock(true);
-          setLoading(false);
-          return;
-        }
-      }
-
+      setShowPinLock(pinEnabled);
+      setShowFullAuth(Boolean(user) && !pinEnabled);
       setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSessionUser(session?.user ?? null);
+      const nextUser = session?.user ?? null;
+      const pinEnabled = Boolean(nextUser && hasPinLock(nextUser.id));
+      setSessionUser(nextUser);
+      setShowPinLock(pinEnabled);
+      setShowFullAuth(Boolean(nextUser) && !pinEnabled);
       if (event === "SIGNED_OUT") {
         clearMasterKey();
         clearLocalVaultSession();
@@ -181,10 +178,11 @@ export default function VaultApp() {
     }
   }, [searchOpen]);
 
-  const handleLogin = (masterPass: string) => {
-    setMasterKey(masterPass);
+  const handleLogin = (masterPass: string, expectedUserId: string): boolean => {
+    if (!setMasterKey(masterPass, expectedUserId)) return false;
     setShowPinLock(false);
     setShowFullAuth(false);
+    return true;
   };
 
   const handleLogout = async () => {
@@ -308,10 +306,9 @@ export default function VaultApp() {
   if (sessionUser && !masterPassword && showPinLock && !showFullAuth) {
     return (
       <PinLock
+        key={authenticatedUserId}
         authenticatedUserId={authenticatedUserId}
-        onUnlock={(mk) => {
-          setMasterKey(mk);
-        }}
+        onUnlock={handleLogin}
         onFallback={() => {
           setShowPinLock(false);
           setShowFullAuth(true);
@@ -321,7 +318,7 @@ export default function VaultApp() {
   }
 
   if (!masterPassword) {
-    return <Auth onLogin={handleLogin} />;
+    return <Auth key={authenticatedUserId} onLogin={handleLogin} />;
   }
 
   const sharedProps = { masterPassword, focusedItemId };

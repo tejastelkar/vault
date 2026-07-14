@@ -3,12 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { clearLocalVaultSession } from "@/lib/vaultSession";
-import { scopeVaultKeyToAuthenticatedUser, shouldClearVaultKeyForAuthChange } from "@/lib/vaultKeyOwnership";
+import { commitVaultKeyForExpectedUser, scopeVaultKeyToAuthenticatedUser, shouldClearVaultKeyForAuthChange } from "@/lib/vaultKeyOwnership";
 
 type VaultKeyContextValue = {
   authenticatedUserId: string | null;
   masterKey: string | null;
-  setMasterKey: (value: string) => void;
+  setMasterKey: (value: string, expectedUserId: string) => boolean;
   clearMasterKey: () => void;
 };
 
@@ -26,16 +26,17 @@ export function VaultKeyProvider({ children }: { children: React.ReactNode }) {
     clearLocalVaultSession();
   }, []);
 
-  const setMasterKey = useCallback((value: string) => {
-    const currentUserId = currentUserIdRef.current;
-    if (!currentUserId) {
-      clearMasterKey();
-      return;
-    }
-
-    setMasterKeyUserId(currentUserId);
-    setMasterKeyState(value);
-  }, [clearMasterKey]);
+  const setMasterKey = useCallback((value: string, expectedUserId: string) => (
+    commitVaultKeyForExpectedUser(
+      value,
+      expectedUserId,
+      currentUserIdRef.current,
+      (acceptedKey, ownerUserId) => {
+        setMasterKeyUserId(ownerUserId);
+        setMasterKeyState(acceptedKey);
+      },
+    )
+  ), []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

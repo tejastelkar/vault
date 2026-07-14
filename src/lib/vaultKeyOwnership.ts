@@ -31,6 +31,20 @@ export function shouldClearVaultKeyForAuthChange(previousUserId: unknown, curren
   return current === null || previous !== current;
 }
 
+export function commitVaultKeyForExpectedUser(
+  masterKey: string,
+  expectedUserId: unknown,
+  currentUserId: unknown,
+  commit: (masterKey: string, ownerUserId: string) => void,
+): boolean {
+  const expected = normalizeVaultUserId(expectedUserId);
+  const current = normalizeVaultUserId(currentUserId);
+  if (!expected || expected !== current) return false;
+
+  commit(masterKey, expected);
+  return true;
+}
+
 export function scopeVaultKeyToAuthenticatedUser(
   masterKey: string | null,
   ownerUserId: unknown,
