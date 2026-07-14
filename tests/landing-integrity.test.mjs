@@ -70,6 +70,25 @@ test("landing palette keeps small labels and CTA hover text accessible", () => {
   assert.ok(contrastRatio("#005bb5", "#ffffff") >= 4.5);
 });
 
+test("privacy panel keeps one accessible graphite material in both themes", () => {
+  const css = read("src/app/landing.module.css");
+
+  assert.match(
+    css,
+    /\.privacyNote \{[^}]*background: #1d1d1f;[^}]*color: #fbfbfd;/s,
+  );
+  assert.match(
+    css,
+    /\.privacyNote \.sectionEyebrow \{ color: #2997ff; \}/,
+  );
+  assert.match(css, /\.privacyNote p:last-child \{[^}]*color: #c7c7cc;/s);
+  assert.match(css, /\.privacyGlyph \{[^}]*rgba\(251, 251, 253, 0\.2\)/s);
+
+  assert.ok(contrastRatio("#fbfbfd", "#1d1d1f") >= 4.5);
+  assert.ok(contrastRatio("#2997ff", "#1d1d1f") >= 4.5);
+  assert.ok(contrastRatio("#c7c7cc", "#1d1d1f") >= 4.5);
+});
+
 test("landing anchors and decorative aperture keep semantic boundaries", () => {
   const css = read("src/app/landing.module.css");
   const aperture = read("src/components/marketing/VaultAperture.tsx");

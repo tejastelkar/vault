@@ -589,13 +589,13 @@
 .securityList h3 { font-size: 15px; font-weight: 650; letter-spacing: -.02em; }
 .securityList p { margin-top: 8px; color: var(--landing-muted); font-size: 13px; line-height: 1.55; }
 
-.privacyNote { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 54px; margin-top: 90px; scroll-margin-top: 110px; border-radius: 34px; padding: 56px; background: var(--landing-graphite); color: var(--landing-paper); }
-.privacyNote .sectionEyebrow { color: #5eb0ff; }
+.privacyNote { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 54px; margin-top: 90px; scroll-margin-top: 110px; border-radius: 34px; padding: 56px; background: #1d1d1f; color: #fbfbfd; }
+.privacyNote .sectionEyebrow { color: #2997ff; }
 .privacyNote h3 { margin-top: 13px; font-size: clamp(2rem,4vw,3.7rem); font-weight: 590; letter-spacing: -.055em; line-height: 1.02; }
-.privacyNote p:last-child { max-width: 680px; margin-top: 18px; color: color-mix(in srgb, var(--landing-paper) 65%, transparent); font-size: 14px; line-height: 1.6; }
-.privacyGlyph { position: relative; display: block; width: 150px; aspect-ratio: 1; border: 1px solid color-mix(in srgb, var(--landing-paper) 20%, transparent); border-radius: 50%; }
-.privacyGlyph::before { position: absolute; inset: 24%; border: 1px solid color-mix(in srgb, var(--landing-paper) 28%, transparent); border-radius: 50%; content: ""; }
-.privacyGlyph i { position: absolute; top: 50%; left: 50%; width: 52%; height: 1px; background: #5eb0ff; transform-origin: left center; }
+.privacyNote p:last-child { max-width: 680px; margin-top: 18px; color: #c7c7cc; font-size: 14px; line-height: 1.6; }
+.privacyGlyph { position: relative; display: block; width: 150px; aspect-ratio: 1; border: 1px solid rgba(251, 251, 253, 0.2); border-radius: 50%; }
+.privacyGlyph::before { position: absolute; inset: 24%; border: 1px solid rgba(251, 251, 253, 0.28); border-radius: 50%; content: ""; }
+.privacyGlyph i { position: absolute; top: 50%; left: 50%; width: 52%; height: 1px; background: #2997ff; transform-origin: left center; }
 .privacyGlyph i:first-child { transform: rotate(38deg); }
 .privacyGlyph i:last-child { transform: rotate(142deg); }
 
