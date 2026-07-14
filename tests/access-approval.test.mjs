@@ -7,6 +7,7 @@ const REQUEST = {
   id: "550e8400-e29b-41d4-a716-446655440001",
   email: "invitee@example.com",
   fullName: "Invitee Person",
+  attempt: 1,
 };
 
 function approvalFixture(overrides = {}) {
@@ -179,4 +180,59 @@ test("audit failure is reported without changing a durable invitation result", a
   assert.equal(result.kind, "invited");
   assert.equal(fixture.state, "invited");
   assert.equal(reported.length, 1);
+});
+
+test("a reclaimed attempt fences delayed completion and failure from the stale worker", async () => {
+  let attempt = 0;
+  let currentAttempt = 0;
+  let state = "pending";
+  let releaseFirstInvite;
+  const firstInviteGate = new Promise((resolve) => { releaseFirstInvite = resolve; });
+  const completions = [];
+  const failures = [];
+
+  const deps = {
+    now: () => "2026-07-14T10:00:00.000Z",
+    async claim() {
+      attempt += 1;
+      currentAttempt = attempt;
+      state = "inviting";
+      return { kind: "claimed", request: { ...REQUEST, attempt } };
+    },
+    reconcile: async () => null,
+    async invite() {
+      if (attempt === 1) await firstInviteGate;
+      return { userId: `550e8400-e29b-41d4-a716-44665544000${attempt + 1}` };
+    },
+    async markInvited(_requestId, _adminId, userId, claimedAttempt) {
+      if (claimedAttempt !== currentAttempt || state !== "inviting") throw new Error("STALE_ATTEMPT");
+      completions.push({ claimedAttempt, userId });
+      state = "invited";
+    },
+    async markFailed(_requestId, _adminId, _code, claimedAttempt) {
+      if (claimedAttempt !== currentAttempt || state !== "inviting") throw new Error("STALE_ATTEMPT");
+      failures.push(claimedAttempt);
+      state = "invite_failed";
+    },
+    mapError: () => "DELIVERY_FAILED",
+    audit: async () => {},
+  };
+
+  const first = approveAccessRequest(deps, {
+    requestId: REQUEST.id,
+    adminId: "550e8400-e29b-41d4-a716-446655440000",
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const second = await approveAccessRequest(deps, {
+    requestId: REQUEST.id,
+    adminId: "550e8400-e29b-41d4-a716-446655440000",
+  });
+  releaseFirstInvite();
+
+  await assert.rejects(first, /STALE_ATTEMPT/);
+  assert.equal(second.kind, "invited");
+  assert.equal(state, "invited");
+  assert.deepEqual(completions.map(({ claimedAttempt }) => claimedAttempt), [2]);
+  assert.deepEqual(failures, []);
 });

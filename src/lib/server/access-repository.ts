@@ -152,10 +152,22 @@ export async function claimAccessRequestInvitation(
 
   if (error) throw new Error("INVITATION_CLAIM_FAILED");
   const row = Array.isArray(data) ? data[0] : null;
-  if (row && typeof row.id === "string" && typeof row.email === "string" && typeof row.full_name === "string") {
+  if (
+    row
+    && typeof row.id === "string"
+    && typeof row.email === "string"
+    && typeof row.full_name === "string"
+    && Number.isSafeInteger(row.attempt)
+    && row.attempt > 0
+  ) {
     return {
       kind: "claimed",
-      request: { id: row.id, email: row.email, fullName: row.full_name },
+      request: {
+        id: row.id,
+        email: row.email,
+        fullName: row.full_name,
+        attempt: row.attempt,
+      },
     };
   }
 
@@ -175,6 +187,7 @@ export async function completeAccessRequestInvitation(
   requestId: string,
   adminId: string,
   userId: string,
+  attempt: number,
   now: string,
 ) {
   const admin = createSupabaseAdminClient();
@@ -182,6 +195,7 @@ export async function completeAccessRequestInvitation(
     p_request_id: requestId,
     p_admin_id: adminId,
     p_user_id: userId,
+    p_attempt: attempt,
     p_now: now,
   });
   if (error) throw new Error("INVITATION_COMPLETION_FAILED");
@@ -191,6 +205,7 @@ export async function markAccessRequestInvitationFailed(
   requestId: string,
   adminId: string,
   code: string,
+  attempt: number,
   now: string,
 ) {
   const admin = createSupabaseAdminClient();
@@ -204,6 +219,7 @@ export async function markAccessRequestInvitationFailed(
     })
     .eq("id", requestId)
     .eq("status", "inviting")
+    .eq("invite_attempts", attempt)
     .select("id")
     .maybeSingle();
 

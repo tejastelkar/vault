@@ -54,6 +54,7 @@ test("access request admin list is cursor-only, bounded to 25 DTO rows, and allo
 test("invitation claims and completion use atomic service-role-only database RPCs", () => {
   const repository = read("src/lib/server/access-repository.ts");
   const schema = read("invite_access_schema.sql");
+  const approval = read("src/lib/access/approval.ts");
 
   assert.match(repository, /claim_access_request_invitation/);
   assert.match(repository, /complete_access_request_invitation/);
@@ -61,6 +62,12 @@ test("invitation claims and completion use atomic service-role-only database RPC
   assert.match(schema, /invite_attempts\s*=\s*request\.invite_attempts\s*\+\s*1/i);
   assert.match(schema, /status\s+in\s*\(\s*'pending'\s*,\s*'invite_failed'\s*\)/i);
   assert.match(schema, /invite_started_at\s*<\s*p_stale_before/i);
+  assert.match(schema, /returns table \(id uuid, email text, full_name text, attempt integer\)/i);
+  assert.match(schema, /p_attempt integer/i);
+  assert.match(schema, /request\.invite_attempts\s*=\s*p_attempt/i);
+  assert.match(repository, /p_attempt:\s*attempt/);
+  assert.match(repository, /\.eq\("invite_attempts",\s*attempt\)/);
+  assert.match(approval, /claim\.request\.attempt/);
   assert.match(schema, /revoke all on function public\.claim_access_request_invitation[\s\S]*from public, anon, authenticated/i);
 });
 

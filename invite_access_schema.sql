@@ -69,7 +69,7 @@ create or replace function public.claim_access_request_invitation(
   p_admin_id uuid,
   p_now timestamptz,
   p_stale_before timestamptz
-) returns table (id uuid, email text, full_name text)
+) returns table (id uuid, email text, full_name text, attempt integer)
 language sql
 security invoker
 set search_path = ''
@@ -90,13 +90,14 @@ as $$
         and request.invite_started_at < p_stale_before
       )
     )
-  returning request.id, request.email, request.full_name;
+  returning request.id, request.email, request.full_name, request.invite_attempts;
 $$;
 
 create or replace function public.complete_access_request_invitation(
   p_request_id uuid,
   p_admin_id uuid,
   p_user_id uuid,
+  p_attempt integer,
   p_now timestamptz
 ) returns void
 language plpgsql
@@ -111,6 +112,7 @@ begin
   from public.access_requests as request
   where request.id = p_request_id
     and request.status = 'inviting'
+    and request.invite_attempts = p_attempt
   for update;
 
   if not found then
@@ -143,7 +145,8 @@ begin
       invited_at = p_now,
       last_error_code = null,
       updated_at = p_now
-  where request.id = p_request_id;
+  where request.id = p_request_id
+    and request.invite_attempts = p_attempt;
 end;
 $$;
 
@@ -164,8 +167,8 @@ revoke all on function public.consume_access_request_rate_limit(text, timestampt
 grant execute on function public.consume_access_request_rate_limit(text, timestamptz, integer) to service_role;
 revoke all on function public.claim_access_request_invitation(uuid, uuid, timestamptz, timestamptz) from public, anon, authenticated;
 grant execute on function public.claim_access_request_invitation(uuid, uuid, timestamptz, timestamptz) to service_role;
-revoke all on function public.complete_access_request_invitation(uuid, uuid, uuid, timestamptz) from public, anon, authenticated;
-grant execute on function public.complete_access_request_invitation(uuid, uuid, uuid, timestamptz) to service_role;
+revoke all on function public.complete_access_request_invitation(uuid, uuid, uuid, integer, timestamptz) from public, anon, authenticated;
+grant execute on function public.complete_access_request_invitation(uuid, uuid, uuid, integer, timestamptz) to service_role;
 
 drop policy if exists "Members read their own status" on public.app_members;
 create policy "Members read their own status" on public.app_members

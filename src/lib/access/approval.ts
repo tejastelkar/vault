@@ -5,7 +5,7 @@ export type InvitationErrorCode =
   | "CONFIGURATION_ERROR";
 
 export type ClaimResult =
-  | { kind: "claimed"; request: { id: string; email: string; fullName: string } }
+  | { kind: "claimed"; request: { id: string; email: string; fullName: string; attempt: number } }
   | { kind: "already_processing" }
   | { kind: "not_found" };
 
@@ -21,8 +21,20 @@ export type ApprovalDependencies = {
   claim: (requestId: string, adminId: string, now: string) => Promise<ClaimResult>;
   reconcile: (email: string) => Promise<{ userId: string } | null>;
   invite: (email: string, fullName: string) => Promise<{ userId: string }>;
-  markInvited: (requestId: string, adminId: string, userId: string, now: string) => Promise<void>;
-  markFailed: (requestId: string, adminId: string, code: string, now: string) => Promise<void>;
+  markInvited: (
+    requestId: string,
+    adminId: string,
+    userId: string,
+    attempt: number,
+    now: string,
+  ) => Promise<void>;
+  markFailed: (
+    requestId: string,
+    adminId: string,
+    code: string,
+    attempt: number,
+    now: string,
+  ) => Promise<void>;
   mapError: (error: unknown) => InvitationErrorCode;
   audit: (entry: AuditEntry) => Promise<void>;
   reportAuditFailure?: (error: unknown) => void;
@@ -44,7 +56,13 @@ export async function approveAccessRequest(
   try {
     const existing = await deps.reconcile(claim.request.email);
     const invited = existing ?? await deps.invite(claim.request.email, claim.request.fullName);
-    await deps.markInvited(args.requestId, args.adminId, invited.userId, deps.now());
+    await deps.markInvited(
+      args.requestId,
+      args.adminId,
+      invited.userId,
+      claim.request.attempt,
+      deps.now(),
+    );
     result = { kind: "invited", userId: invited.userId };
     auditEntry = {
       action: "invite",
@@ -55,7 +73,13 @@ export async function approveAccessRequest(
     };
   } catch (error) {
     const code = deps.mapError(error);
-    await deps.markFailed(args.requestId, args.adminId, code, deps.now());
+    await deps.markFailed(
+      args.requestId,
+      args.adminId,
+      code,
+      claim.request.attempt,
+      deps.now(),
+    );
     result = { kind: "failed", code };
     auditEntry = {
       action: "invite",
