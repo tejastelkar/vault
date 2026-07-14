@@ -1,0 +1,94 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { test } from "node:test";
+
+const file = (path) => new URL(`../${path}`, import.meta.url);
+const read = (path) => readFileSync(file(path), "utf8");
+
+test("invitation GET is a non-consuming explicit-confirmation landing", () => {
+  const path = "src/app/accept-invite/page.tsx";
+  assert.equal(existsSync(file(path)), true, `${path} must exist`);
+  const source = read(path);
+
+  assert.match(source, /searchParams:\s*Promise</);
+  assert.match(source, /await searchParams/);
+  assert.match(source, /type\s*===\s*["']invite["']/);
+  assert.match(source, /token_hash/);
+  assert.match(source, /action=["']\/auth\/confirm["']/);
+  assert.match(source, /method=["']post["']/i);
+  assert.doesNotMatch(source, /verifyOtp|exchangeCodeForSession|createServerSupabaseClient/);
+});
+
+test("confirmation route consumes invitation tokens only on POST", () => {
+  const path = "src/app/auth/confirm/route.ts";
+  assert.equal(existsSync(file(path)), true, `${path} must exist`);
+  const source = read(path);
+
+  assert.match(source, /export\s+async\s+function\s+POST\s*\(/);
+  assert.doesNotMatch(source, /export\s+(?:async\s+)?function\s+GET\s*\(/);
+  assert.match(source, /verifyOtp\(\{\s*token_hash:\s*tokenHash,\s*type:\s*["']invite["']\s*\}\)/s);
+  assert.match(source, /reconcileConfirmedInvite/);
+  assert.match(source, /auth\.signOut\(\)/);
+  assert.match(source, /getAll\(["']token_hash["']\)\.length\s*!==\s*1/);
+  assert.match(source, /size\s*>\s*MAX_CONFIRM_BYTES/);
+});
+
+test("onboarding keeps sign-in password and master key as separate secrets", () => {
+  const path = "src/components/auth/OnboardingForm.tsx";
+  assert.equal(existsSync(file(path)), true, `${path} must exist`);
+  const source = read(path);
+
+  assert.match(source, /updateUser\(\{\s*password\s*\}\)/);
+  assert.match(source, /JSON\.stringify\(\{\s*completed:\s*true\s*\}\)/);
+  assert.doesNotMatch(source, /JSON\.stringify\([^)]*(?:masterKey|masterPassword)/s);
+  assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|document\.cookie/);
+  assert.match(source, /if\s*\(masterKey\s*!==\s*masterKeyConfirmation\)/);
+  assert.ok(
+    source.indexOf("if (masterKey !== masterKeyConfirmation)") < source.indexOf("setMasterKey(masterKey"),
+    "the local confirmation check must precede setMasterKey",
+  );
+  assert.ok(
+    source.indexOf("response.ok") < source.indexOf("setMasterKey(masterKey"),
+    "durable membership activation must precede the local key handoff",
+  );
+  assert.match(source, /setMasterKey\(masterKey,\s*userId\)/);
+  assert.match(source, /setMasterKeyValue\(["']{2}\)/);
+  assert.match(source, /setMasterKeyConfirmation\(["']{2}\)/);
+  assert.match(source, /router\.replace\(["']\/vault["']\)/);
+});
+
+test("onboarding completion accepts only a marker and activates the cookie user", () => {
+  const path = "src/app/api/onboarding/complete/route.ts";
+  assert.equal(existsSync(file(path)), true, `${path} must exist`);
+  const source = read(path);
+
+  assert.match(source, /assertSameOrigin\(request\)/);
+  assert.match(source, /readBoundedJson\(request,/);
+  assert.match(source, /completed\s*!==\s*true/);
+  assert.match(source, /requireUser\(\)/);
+  assert.match(source, /getMembershipForUser\(user\.id\)/);
+  assert.match(source, /status\s*!==\s*["']invited["']/);
+  assert.match(source, /activateInvitedMember\(user\.id\)/);
+  assert.doesNotMatch(source, /masterKey|masterPassword|password/);
+});
+
+test("privileged onboarding RPCs preserve terminal member states and are service-role only", () => {
+  const sql = read("invite_access_schema.sql");
+  const repository = read("src/lib/server/access-repository.ts");
+
+  assert.match(repository, /reconcileConfirmedInvite/);
+  assert.match(repository, /activateInvitedMember/);
+  assert.match(sql, /create or replace function public\.reconcile_confirmed_invite/i);
+  assert.match(sql, /create or replace function public\.activate_invited_member/i);
+  assert.match(sql, /status\s+not in\s*\(\s*'active'\s*,\s*'suspended'\s*,\s*'revoked'\s*\)/i);
+  assert.match(sql, /get diagnostics updated_requests = row_count[\s\S]*updated_requests <> 1/i);
+  for (const signature of [
+    "public.reconcile_confirmed_invite(uuid, text, timestamptz)",
+    "public.activate_invited_member(uuid, timestamptz)",
+  ]) {
+    const escaped = signature.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(sql, new RegExp(`revoke all on function ${escaped} from public, anon, authenticated`, "i"));
+    assert.match(sql, new RegExp(`grant execute on function ${escaped} to service_role`, "i"));
+  }
+  assert.doesNotMatch(sql, /master_key|masterkey|master_password|masterpassword/i);
+});

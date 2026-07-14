@@ -150,6 +150,128 @@ begin
 end;
 $$;
 
+create or replace function public.reconcile_confirmed_invite(
+  p_user_id uuid,
+  p_email text,
+  p_now timestamptz
+) returns text
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  matching_request public.access_requests%rowtype;
+  member_status text;
+begin
+  if p_email is null or p_email <> lower(btrim(p_email)) then
+    raise exception using errcode = '22023', message = 'email must be canonical';
+  end if;
+
+  select request.*
+  into matching_request
+  from public.access_requests as request
+  where request.email = p_email
+    and request.status in ('inviting', 'invited', 'invite_failed')
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'eligible invitation request not found';
+  end if;
+
+  insert into public.app_members (
+    user_id,
+    email,
+    status,
+    access_request_id,
+    approved_by,
+    approved_at
+  ) values (
+    p_user_id,
+    p_email,
+    'invited',
+    matching_request.id,
+    matching_request.reviewed_by,
+    coalesce(matching_request.reviewed_at, p_now)
+  )
+  on conflict do nothing;
+
+  update public.app_members as member
+  set email = p_email,
+      access_request_id = coalesce(member.access_request_id, matching_request.id),
+      approved_by = coalesce(member.approved_by, matching_request.reviewed_by)
+  where member.user_id = p_user_id;
+
+  update public.app_members as member
+  set status = 'invited'
+  where member.user_id = p_user_id
+    and member.status not in ('active', 'suspended', 'revoked');
+
+  select member.status
+  into member_status
+  from public.app_members as member
+  where member.user_id = p_user_id;
+
+  if not found then
+    raise exception using errcode = '23505', message = 'invitation membership conflicts with an existing identity';
+  end if;
+
+  update public.access_requests as request
+  set status = 'invited',
+      auth_user_id = p_user_id,
+      invited_at = coalesce(request.invited_at, p_now),
+      last_error_code = null,
+      updated_at = p_now
+  where request.id = matching_request.id;
+
+  return member_status;
+end;
+$$;
+
+create or replace function public.activate_invited_member(
+  p_user_id uuid,
+  p_now timestamptz
+) returns text
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  request_id uuid;
+  updated_requests integer;
+begin
+  update public.app_members as member
+  set status = 'active',
+      activated_at = coalesce(member.activated_at, p_now)
+  where member.user_id = p_user_id
+    and member.status = 'invited'
+  returning member.access_request_id into request_id;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'invited membership not found';
+  end if;
+
+  if request_id is null then
+    raise exception using errcode = 'P0002', message = 'invitation request link not found';
+  end if;
+
+  update public.access_requests as request
+  set status = 'active',
+      auth_user_id = p_user_id,
+      activated_at = coalesce(request.activated_at, p_now),
+      updated_at = p_now
+  where request.id = request_id
+    and request.auth_user_id = p_user_id
+    and request.status = 'invited';
+
+  get diagnostics updated_requests = row_count;
+  if updated_requests <> 1 then
+    raise exception using errcode = 'P0002', message = 'invitation request is not activatable';
+  end if;
+
+  return 'active';
+end;
+$$;
+
 alter table public.access_requests enable row level security;
 alter table public.app_members enable row level security;
 alter table public.admin_audit_log enable row level security;
@@ -169,6 +291,10 @@ revoke all on function public.claim_access_request_invitation(uuid, uuid, timest
 grant execute on function public.claim_access_request_invitation(uuid, uuid, timestamptz, timestamptz) to service_role;
 revoke all on function public.complete_access_request_invitation(uuid, uuid, uuid, integer, timestamptz) from public, anon, authenticated;
 grant execute on function public.complete_access_request_invitation(uuid, uuid, uuid, integer, timestamptz) to service_role;
+revoke all on function public.reconcile_confirmed_invite(uuid, text, timestamptz) from public, anon, authenticated;
+grant execute on function public.reconcile_confirmed_invite(uuid, text, timestamptz) to service_role;
+revoke all on function public.activate_invited_member(uuid, timestamptz) from public, anon, authenticated;
+grant execute on function public.activate_invited_member(uuid, timestamptz) to service_role;
 
 drop policy if exists "Members read their own status" on public.app_members;
 create policy "Members read their own status" on public.app_members

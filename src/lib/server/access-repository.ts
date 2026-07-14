@@ -44,6 +44,13 @@ export type MemberAdminDto = {
   createdAt: string;
 };
 
+export class InviteReconciliationError extends Error {
+  constructor(readonly code: "NO_ELIGIBLE_REQUEST" | "RECONCILIATION_FAILED") {
+    super(code);
+    this.name = "InviteReconciliationError";
+  }
+}
+
 type AccessRequestRow = {
   id: string;
   full_name: string;
@@ -199,6 +206,54 @@ export async function completeAccessRequestInvitation(
     p_now: now,
   });
   if (error) throw new Error("INVITATION_COMPLETION_FAILED");
+}
+
+export async function reconcileConfirmedInvite(input: {
+  userId: string;
+  email: string;
+}): Promise<MemberStatus> {
+  const email = input.email.trim().toLowerCase();
+  const admin = createSupabaseAdminClient();
+  const { data: matches, error: lookupError } = await admin
+    .from("access_requests")
+    .select("id")
+    .eq("email", email)
+    .in("status", ["inviting", "invited", "invite_failed"])
+    .limit(2);
+
+  if (lookupError) throw new InviteReconciliationError("RECONCILIATION_FAILED");
+  if (matches?.length !== 1) throw new InviteReconciliationError("NO_ELIGIBLE_REQUEST");
+
+  const now = new Date().toISOString();
+  const { data, error } = await admin.rpc("reconcile_confirmed_invite", {
+    p_user_id: input.userId,
+    p_email: email,
+    p_now: now,
+  });
+  if (error || !["invited", "active", "suspended", "revoked"].includes(data)) {
+    throw new InviteReconciliationError("RECONCILIATION_FAILED");
+  }
+  return data as MemberStatus;
+}
+
+export async function activateInvitedMember(userId: string) {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin.rpc("activate_invited_member", {
+    p_user_id: userId,
+    p_now: new Date().toISOString(),
+  });
+  if (error || data !== "active") throw new Error("MEMBER_ACTIVATION_FAILED");
+}
+
+export async function recordActivationAudit(userId: string) {
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.from("admin_audit_log").insert({
+    action: "onboarding_complete",
+    result_code: "ACTIVE",
+    actor_user_id: userId,
+    member_user_id: userId,
+  });
+  if (error) throw new Error("ADMIN_AUDIT_WRITE_FAILED");
 }
 
 export async function markAccessRequestInvitationFailed(
