@@ -11,6 +11,59 @@ const readPolicy = (sql, name) => {
   return match[0];
 };
 
+const readExportedAction = (source, name) => {
+  const signature = `export async function ${name}(`;
+  const start = source.indexOf(signature);
+  assert.notEqual(start, -1, `Missing Server Action: ${name}`);
+  const next = source.indexOf("export async function ", start + signature.length);
+  return source.slice(start, next === -1 ? source.length : next);
+};
+
+const assertActiveMemberAction = (source, name) => {
+  const action = readExportedAction(source, name);
+  const guard = action.indexOf("await requireActiveMemberForToken(accessToken)");
+  assert.notEqual(guard, -1, `${name} must require active membership in its own body`);
+  const privilegedWork = action.search(/process\.env\.(?:GEMINI|GROQ)_API_KEY|parseGlobalBulkData\(/);
+  assert.notEqual(privilegedWork, -1, `${name} must expose a privileged-work boundary to test`);
+  assert.ok(guard < privilegedWork, `${name} must authorize before privileged work`);
+};
+
+const readPolicyClause = (policy, keyword) => {
+  const clause = policy.toLowerCase().indexOf(keyword.toLowerCase());
+  assert.notEqual(clause, -1, `Missing ${keyword} clause`);
+  const start = policy.indexOf("(", clause + keyword.length);
+  assert.notEqual(start, -1, `Missing opening parenthesis for ${keyword}`);
+
+  let depth = 0;
+  let quoted = false;
+  for (let index = start; index < policy.length; index += 1) {
+    if (policy[index] === "'") {
+      if (quoted && policy[index + 1] === "'") {
+        index += 1;
+        continue;
+      }
+      quoted = !quoted;
+      continue;
+    }
+    if (quoted) continue;
+    if (policy[index] === "(") depth += 1;
+    if (policy[index] === ")") {
+      depth -= 1;
+      if (depth === 0) return policy.slice(start + 1, index);
+    }
+  }
+  assert.fail(`Unclosed ${keyword} clause`);
+};
+
+const ACTIVE_MEMBERSHIP = /member\.user_id\s*=\s*\(select auth\.uid\(\)\)[\s\S]*member\.status\s*=\s*'active'/i;
+const ROW_OWNERSHIP = /\(select auth\.uid\(\)\)\s*=\s*user_id/i;
+const PATH_OWNERSHIP = /\(storage\.foldername\(name\)\)\[1\]\s*=\s*\(select auth\.uid\(\)\)::text/i;
+
+const assertMembershipClause = (clause, ownership, label) => {
+  assert.match(clause, ownership, `${label} must preserve ownership`);
+  assert.match(clause, ACTIVE_MEMBERSHIP, `${label} must require active membership`);
+};
+
 test("document queries consistently use the vault_documents table", () => {
   const files = [
     "src/components/VaultApp.tsx",
@@ -67,9 +120,32 @@ test("scan requests are byte-bounded before JSON parsing", () => {
 
 test("all protected AI operations require an active member", () => {
   const actions = read("src/app/actions.ts");
-  const guards = actions.match(/await requireActiveMemberForToken\(accessToken\)/g) ?? [];
-  assert.equal(guards.length, 8, "Every exported vault AI action must require active membership");
+  for (const name of [
+    "analyzeImageName",
+    "enrichPasswordMetadata",
+    "categorizeDocument",
+    "categorizeNote",
+    "aiSearchVault",
+    "parseNotesToPasswords",
+    "parseBulkNotes",
+    "extractGlobalImportDrafts",
+  ]) assertActiveMemberAction(actions, name);
   assert.doesNotMatch(actions, /requireAuthenticatedUser/);
+
+  const duplicateGuardFixture = `
+    export async function analyzeImageName(accessToken) {
+      await requireActiveMemberForToken(accessToken);
+      await requireActiveMemberForToken(accessToken);
+      process.env.GEMINI_API_KEY;
+    }
+    export async function enrichPasswordMetadata(accessToken) {
+      process.env.GROQ_API_KEY;
+    }
+  `;
+  assert.throws(
+    () => assertActiveMemberAction(duplicateGuardFixture, "enrichPasswordMetadata"),
+    /must require active membership in its own body/,
+  );
 
   const scan = read("src/app/api/scan/route.ts");
   assert.match(scan, /authenticateActiveMemberRequest\(req\)/);
@@ -92,10 +168,11 @@ test("vault and storage RLS policies combine ownership with active membership", 
   for (const names of Object.values(tablePolicies)) {
     for (const name of names) {
       const policy = readPolicy(sql, name);
-      assert.match(policy, /\(select auth\.uid\(\)\)\s*=\s*user_id/i, `${name} must preserve ownership`);
-      assert.match(policy, /member\.user_id\s*=\s*\(select auth\.uid\(\)\)[\s\S]*member\.status\s*=\s*'active'/i, `${name} must require active membership`);
       if (/update/i.test(name)) {
-        assert.match(policy, /using\s*\([\s\S]*\)\s*with check\s*\(/i, `${name} must constrain old and new rows`);
+        assertMembershipClause(readPolicyClause(policy, "using"), ROW_OWNERSHIP, `${name} USING`);
+        assertMembershipClause(readPolicyClause(policy, "with check"), ROW_OWNERSHIP, `${name} WITH CHECK`);
+      } else {
+        assertMembershipClause(policy, ROW_OWNERSHIP, name);
       }
     }
   }
@@ -109,12 +186,28 @@ test("vault and storage RLS policies combine ownership with active membership", 
     "Users can delete their own avatars",
   ]) {
     const policy = readPolicy(sql, name);
-    assert.match(policy, /\(storage\.foldername\(name\)\)\[1\]\s*=\s*\(select auth\.uid\(\)\)::text/i, `${name} must preserve path ownership`);
-    assert.match(policy, /member\.user_id\s*=\s*\(select auth\.uid\(\)\)[\s\S]*member\.status\s*=\s*'active'/i, `${name} must require active membership`);
     if (/update/i.test(name)) {
-      assert.match(policy, /using\s*\([\s\S]*\)\s*with check\s*\(/i, `${name} must constrain old and new paths`);
+      assertMembershipClause(readPolicyClause(policy, "using"), PATH_OWNERSHIP, `${name} USING`);
+      assertMembershipClause(readPolicyClause(policy, "with check"), PATH_OWNERSHIP, `${name} WITH CHECK`);
+    } else {
+      assertMembershipClause(policy, PATH_OWNERSHIP, name);
     }
   }
+
+  const missingWithCheckMembership = `
+    create policy "fixture" on public.vault_items for update to authenticated
+    using (
+      (select auth.uid()) = user_id and exists (
+        select 1 from public.app_members member
+        where member.user_id = (select auth.uid()) and member.status = 'active'
+      )
+    )
+    with check ((select auth.uid()) = user_id);
+  `;
+  assert.throws(
+    () => assertMembershipClause(readPolicyClause(missingWithCheckMembership, "with check"), ROW_OWNERSHIP, "fixture WITH CHECK"),
+    /must require active membership/,
+  );
 });
 
 test("client crypto does not depend on Node Buffer", () => {
