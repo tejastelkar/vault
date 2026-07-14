@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { clearLocalVaultSession } from "@/lib/vaultSession";
 
 type VaultKeyContextValue = {
   masterKey: string | null;
@@ -12,13 +14,50 @@ const VaultKeyContext = createContext<VaultKeyContextValue | null>(null);
 
 export function VaultKeyProvider({ children }: { children: React.ReactNode }) {
   const [masterKey, setMasterKeyState] = useState<string | null>(null);
+  const [authenticatedUserId, setAuthenticatedUserId] = useState<string | null>(null);
+  const [masterKeyUserId, setMasterKeyUserId] = useState<string | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
+
+  const clearMasterKey = useCallback(() => {
+    setMasterKeyUserId(null);
+    setMasterKeyState(null);
+    clearLocalVaultSession();
+  }, []);
+
+  const setMasterKey = useCallback((value: string) => {
+    const currentUserId = currentUserIdRef.current;
+    if (!currentUserId) {
+      clearMasterKey();
+      return;
+    }
+
+    setMasterKeyUserId(currentUserId);
+    setMasterKeyState(value);
+  }, [clearMasterKey]);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const previousUserId = currentUserIdRef.current;
+      const currentUserId = session?.user.id ?? null;
+      currentUserIdRef.current = currentUserId;
+      setAuthenticatedUserId(currentUserId);
+
+      if (!currentUserId || previousUserId !== currentUserId) {
+        clearMasterKey();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [clearMasterKey]);
+
+  const scopedMasterKey = masterKeyUserId === authenticatedUserId ? masterKey : null;
   const value = useMemo(
     () => ({
-      masterKey,
-      setMasterKey: setMasterKeyState,
-      clearMasterKey: () => setMasterKeyState(null),
+      masterKey: scopedMasterKey,
+      setMasterKey,
+      clearMasterKey,
     }),
-    [masterKey],
+    [clearMasterKey, scopedMasterKey, setMasterKey],
   );
 
   return <VaultKeyContext.Provider value={value}>{children}</VaultKeyContext.Provider>;

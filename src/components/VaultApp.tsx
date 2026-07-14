@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Auth } from "@/components/Auth";
 import { PinLock, hasPinLock } from "@/components/PinLock";
@@ -105,6 +106,7 @@ const ALL_TABS_WITH_PROFILE = [
 ];
 
 export default function VaultApp() {
+  const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
@@ -210,6 +212,12 @@ export default function VaultApp() {
     wasOnline.current = connectivity.isOnline;
   }, [connectivity.isOnline]);
 
+  useEffect(() => {
+    if (!loading && !sessionUser) {
+      router.replace("/login?next=/vault");
+    }
+  }, [loading, router, sessionUser]);
+
   const handleNavigate = useCallback((tab: Tab, id?: string) => {
     setActiveTab(tab);
     setSearchOpen(false);
@@ -288,7 +296,7 @@ export default function VaultApp() {
     return () => clearTimeout(handler);
   }, [handleAiSearch, searchQuery]);
 
-  if (loading) {
+  if (loading || !sessionUser) {
     return (
       <div className="flex h-dvh items-center justify-center bg-background">
         <ShieldCheckIcon className="w-8 h-8 text-primary opacity-60" />
@@ -311,7 +319,7 @@ export default function VaultApp() {
     );
   }
 
-  if (!sessionUser || !masterPassword) {
+  if (!masterPassword) {
     return <Auth onLogin={handleLogin} />;
   }
 

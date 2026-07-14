@@ -43,12 +43,30 @@ test("master key provider is memory-only and wraps vault clients", () => {
   assert.doesNotMatch(vaultApp, /const \[masterPassword,\s*setMasterPassword\]/);
 });
 
+test("master key provider clears globally when the authenticated user changes or signs out", () => {
+  const provider = read("src/components/auth/VaultKeyProvider.tsx");
+  assert.match(provider, /supabase\.auth\.onAuthStateChange/);
+  assert.match(provider, /previousUserId/);
+  assert.match(provider, /currentUserId/);
+  assert.match(provider, /!currentUserId/);
+  assert.match(provider, /previousUserId\s*!==\s*currentUserId/);
+  assert.match(provider, /setMasterKeyState\(null\)/);
+  assert.match(provider, /clearLocalVaultSession\(\)/);
+  assert.match(provider, /subscription\.unsubscribe\(\)/);
+});
+
 test("vault unlock is session-only and preserves PIN and biometrics", () => {
   const auth = read("src/components/Auth.tsx");
+  const vaultApp = read("src/components/VaultApp.tsx");
   assert.doesNotMatch(auth, /signUp|signInWithPassword|initialSessionActive|initialEmail/);
   assert.doesNotMatch(auth, /type="email"|autoComplete="email"/);
+  assert.doesNotMatch(auth, /autoComplete="current-password"/);
   assert.match(auth, /Master Key/);
   assert.match(auth, /savePinForMaster/);
   assert.match(auth, /unlockWithBiometrics/);
   assert.match(auth, /onLogin\(masterPassword\)/);
+  assert.match(vaultApp, /if \(!loading\s*&&\s*!sessionUser\)\s*\{[\s\S]*router\.replace\("\/login\?next=\/vault"\)/);
+  assert.match(vaultApp, /if \(loading\s*\|\|\s*!sessionUser\)/);
+  assert.match(vaultApp, /if \(!masterPassword\)\s*\{[\s\S]*<Auth onLogin=\{handleLogin\}/);
+  assert.doesNotMatch(vaultApp, /if \(!sessionUser\s*\|\|\s*!masterPassword\)[\s\S]*<Auth/);
 });

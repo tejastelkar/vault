@@ -315,7 +315,7 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
                 onChange={(e) => setMasterPassword(e.target.value)}
                 required
                 minLength={8}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 autoFocus
                 className="w-full pt-7 pb-2.5 px-4 text-[17px] text-foreground focus:outline-none bg-transparent pr-12"
               />
