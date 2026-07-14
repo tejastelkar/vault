@@ -114,25 +114,83 @@ test("access request repository enforces the durable limiter and duplicate-safe 
 
 test("public route keeps honeypot, throttling, and generic response semantics ordered safely", () => {
   const route = read("src/app/api/access-requests/route.ts");
-  const originIndex = route.indexOf("assertSameOrigin(request)");
-  const readIndex = route.indexOf("readBoundedJson(request, MAX_REQUEST_BYTES)");
-  const honeypotIndex = route.indexOf("body.website");
-  const validationIndex = route.indexOf("parseAccessRequestInput(body)");
-  const rateLimitIndex = route.indexOf("await consumeAccessRequestRateLimit", validationIndex);
-  const insertIndex = route.indexOf("await insertAccessRequest", rateLimitIndex);
+  const handler = read("src/lib/server/access-request-handler.ts");
+  const originIndex = handler.indexOf("deps.assertSameOrigin(request)");
+  const readIndex = handler.indexOf("deps.readBoundedJson(request, deps.maxRequestBytes)");
+  const honeypotIndex = handler.indexOf("body.website");
+  const validationIndex = handler.indexOf("deps.parseAccessRequestInput(body)");
+  const rateLimitIndex = handler.indexOf("await deps.consumeAccessRequestRateLimit", validationIndex);
+  const insertIndex = handler.indexOf("await deps.insertAccessRequest", rateLimitIndex);
 
   assert.ok(originIndex >= 0 && readIndex > originIndex);
   assert.ok(honeypotIndex > readIndex && validationIndex > honeypotIndex);
   assert.ok(rateLimitIndex > validationIndex && insertIndex > rateLimitIndex);
   assert.match(route, /const MAX_REQUEST_BYTES = 8_192/);
-  assert.match(route, /accepted:\s*true\s*},\s*202/);
-  assert.match(route, /RATE_LIMITED"\s*},\s*429/);
-  assert.match(route, /REQUEST_UNAVAILABLE"\s*},\s*503/);
-  assert.match(route, /REQUEST_UNAVAILABLE/);
-  assert.match(route, /24\s*\*\s*60\s*\*\s*60\s*\*\s*1_000/);
-  assert.match(route, /parseInt\(fingerprint\.slice\(0,\s*2\),\s*16\)\s*%\s*32/);
-  assert.doesNotMatch(route, /request\.json\(\)/);
-  assert.doesNotMatch(route, /error\.message/);
+  assert.match(handler, /accepted:\s*true\s*},\s*202/);
+  assert.match(handler, /RATE_LIMITED"\s*},\s*429/);
+  assert.match(handler, /REQUEST_UNAVAILABLE"\s*},\s*503/);
+  assert.match(handler, /REQUEST_UNAVAILABLE/);
+  assert.match(handler, /24\s*\*\s*60\s*\*\s*60\s*\*\s*1_000/);
+  assert.match(handler, /parseInt\(fingerprint\.slice\(0,\s*2\),\s*16\)\s*%\s*32/);
+  assert.doesNotMatch(`${route}\n${handler}`, /request\.json\(\)/);
+  assert.doesNotMatch(`${route}\n${handler}`, /error\.message/);
+});
+
+test("public response settles while selected cleanup remains pending after it", async () => {
+  const { handleAccessRequest } = await import("../src/lib/server/access-request-handler.ts");
+  const pendingCleanup = new Promise(() => {});
+  let cleanupStarted = false;
+
+  const responsePromise = handleAccessRequest(
+    new Request("https://vault.test/api/access-requests", {
+      method: "POST",
+      headers: {
+        origin: "https://vault.test",
+        "content-type": "application/json",
+        "x-forwarded-for": "203.0.113.42",
+      },
+      body: JSON.stringify({ fullName: "Aarav Thakur", email: "aarav@example.com", website: "" }),
+    }),
+    {
+      after(callback) {
+        void callback();
+      },
+      assertSameOrigin() {},
+      readBoundedJson: async () => ({ fullName: "Aarav Thakur", email: "aarav@example.com", website: "" }),
+      parseAccessRequestInput: () => ({
+        ok: true,
+        value: { fullName: "Aarav Thakur", email: "aarav@example.com" },
+      }),
+      now: () => new Date("2026-07-14T09:16:00.000Z"),
+      accessRequestWindowStart: () => "2026-07-14T09:15:00.000Z",
+      fingerprintAccessRequest: () => `00${"a".repeat(62)}`,
+      consumeAccessRequestRateLimit: async () => true,
+      insertAccessRequest: async () => {},
+      cleanupExpiredRateLimits: async () => {
+        cleanupStarted = true;
+        return pendingCleanup;
+      },
+      isRequestSecurityError: () => false,
+    },
+  );
+
+  const response = await Promise.race([
+    responsePromise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("response waited for cleanup")), 250)),
+  ]);
+
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), { accepted: true });
+  assert.equal(cleanupStarted, true);
+});
+
+test("Next schedules selected cleanup after the response instead of awaiting it", () => {
+  const route = read("src/app/api/access-requests/route.ts");
+
+  assert.match(route, /import \{ after \} from "next\/server"/);
+  assert.match(route, /after,/);
+  assert.doesNotMatch(route, /finally\s*\{/);
+  assert.doesNotMatch(route, /await cleanupIfSelected/);
 });
 
 test("request page preserves entries for retry and exposes accessible completion and errors", () => {
@@ -144,6 +202,8 @@ test("request page preserves entries for retry and exposes accessible completion
   assert.match(form, /label[\s\S]*Full name/);
   assert.match(form, /label[\s\S]*Email/);
   assert.match(form, /name="website"/);
+  assert.match(form, /<form[\s\S]*action="\/api\/access-requests"[\s\S]*method="post"/);
+  assert.doesNotMatch(form, /method="get"/i);
   assert.match(form, /aria-live="polite"/);
   assert.match(form, /role="alert"/);
   assert.match(form, /Request received\. If an invitation becomes available, we’ll email you\./);

@@ -91,7 +91,13 @@ export function RequestAccessForm() {
   const submitting = state === "submitting";
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <form
+      className={styles.form}
+      action="/api/access-requests"
+      method="post"
+      onSubmit={submit}
+      noValidate
+    >
       <div className={styles.field}>
         <label htmlFor="request-full-name">Full name</label>
         <input
