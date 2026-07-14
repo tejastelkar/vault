@@ -66,6 +66,7 @@ export function VaultAperture() {
 
       <motion.div
         className={styles.apertureStage}
+        aria-hidden="true"
         initial={shouldReduceMotion ? false : "rest"}
         whileInView="composed"
         viewport={{ once: true, amount: 0.3 }}

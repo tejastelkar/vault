@@ -5,6 +5,8 @@
   --landing-graphite: #1d1d1f;
   --landing-muted: #6e6e73;
   --landing-blue: #0071e3;
+  --landing-label-blue: #0066cc;
+  --landing-action-hover: #005bb5;
   --landing-hairline: rgba(29, 29, 31, 0.12);
   min-height: 100dvh;
   overflow: clip;
@@ -20,6 +22,7 @@
   --landing-soft: #242426;
   --landing-graphite: #f5f5f7;
   --landing-muted: #a1a1a6;
+  --landing-label-blue: #2997ff;
   --landing-hairline: rgba(255, 255, 255, 0.12);
 }
 
@@ -153,7 +156,7 @@
 
 .compactCta { min-height: 40px; padding-inline: 16px; font-size: 13px; }
 .compactCta:hover,
-.primaryCta:hover { background: #0077ed; box-shadow: 0 10px 30px rgba(0, 113, 227, 0.26); transform: translateY(-1px); }
+.primaryCta:hover { background: var(--landing-action-hover); box-shadow: 0 10px 30px rgba(0, 91, 181, 0.28); transform: translateY(-1px); }
 .compactCta:active,
 .primaryCta:active { transform: scale(0.98); }
 
@@ -172,7 +175,7 @@
 
 .heroEyebrow,
 .sectionEyebrow {
-  color: var(--landing-blue);
+  color: var(--landing-label-blue);
   font-size: 13px;
   font-weight: 680;
   letter-spacing: 0.07em;
@@ -220,7 +223,7 @@
   font-weight: 580;
 }
 
-.secondaryCta:hover { color: var(--landing-blue); }
+.secondaryCta:hover { color: var(--landing-label-blue); }
 
 .heroAside {
   display: flex;
@@ -470,7 +473,7 @@
 .reverseScene .featureCopy { order: 2; }
 
 .featureCopy > span {
-  color: var(--landing-blue);
+  color: var(--landing-label-blue);
   font-size: 12px;
   font-weight: 670;
   letter-spacing: 0.07em;
@@ -552,11 +555,12 @@
 .smallScene .sceneVisual { min-height: 380px; margin-top: auto; border: 0; border-radius: 28px 28px 0 0; }
 
 .darkScene { background: #1d1d1f; color: #f5f5f7; }
+.darkScene .featureCopy > span { color: #2997ff; }
 .darkScene .featureCopy p { color: #a1a1a6; }
 .noteVisual { display: grid; align-items: end; padding: 34px; background: linear-gradient(145deg, #f3f3f5, #e8e8ec); }
 :global(.dark) .noteVisual { background: linear-gradient(145deg, #2a2a2d, #202023); }
 .notePaper { display: grid; min-height: 270px; align-content: start; gap: 13px; border-radius: 20px; padding: 26px; background: #ffffff; color: #1d1d1f; box-shadow: 0 25px 60px rgba(0,0,0,.13); transform: rotate(-2deg); }
-.notePaper span { color: #0071e3; font-size: 9px; font-weight: 700; letter-spacing: .09em; }
+.notePaper span { color: #0066cc; font-size: 9px; font-weight: 700; letter-spacing: .09em; }
 .notePaper strong { max-width: 260px; font-size: 25px; letter-spacing: -.04em; line-height: 1.1; }
 .notePaper i { width: 100%; height: 7px; border-radius: 6px; background: #ececef; }
 .notePaper i:nth-of-type(2) { width: 82%; }
@@ -576,12 +580,12 @@
 .financeDetail { position: absolute; right: 36px; bottom: 22px; left: 36px; display: flex; justify-content: space-between; border-radius: 14px; padding: 12px 15px; background: rgba(255,255,255,.1); color: #a1a1a6; font-size: 10px; backdrop-filter: blur(14px); }
 .financeDetail strong { color: #f5f5f7; font-weight: 620; }
 
-.securitySection { padding: 140px 0 180px; }
+.securitySection { padding: 140px 0 180px; scroll-margin-top: 100px; }
 .securityLead { max-width: 860px; }
 .securityList { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 72px; border-block: 1px solid var(--landing-hairline); }
 .securityList article { display: flex; gap: 16px; padding: 34px 28px; }
 .securityList article + article { border-left: 1px solid var(--landing-hairline); }
-.securityList article > span { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--landing-blue) 11%, transparent); color: var(--landing-blue); font-size: 13px; }
+.securityList article > span { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--landing-label-blue) 11%, transparent); color: var(--landing-label-blue); font-size: 13px; }
 .securityList h3 { font-size: 15px; font-weight: 650; letter-spacing: -.02em; }
 .securityList p { margin-top: 8px; color: var(--landing-muted); font-size: 13px; line-height: 1.55; }
 
@@ -594,8 +598,6 @@
 .privacyGlyph i { position: absolute; top: 50%; left: 50%; width: 52%; height: 1px; background: #5eb0ff; transform-origin: left center; }
 .privacyGlyph i:first-child { transform: rotate(38deg); }
 .privacyGlyph i:last-child { transform: rotate(142deg); }
-
-#security { scroll-margin-top: 100px; }
 
 .finalCta {
   display: grid;
