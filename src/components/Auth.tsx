@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Loader2Icon, SunIcon, MoonIcon } from "lucide-react";
 import { FaceIdIcon, AppleLockIcon } from "@/components/Icons";
 import { useTheme } from "next-themes";
@@ -9,23 +8,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { savePinForMaster, hasPinLock } from "@/components/PinLock";
 import { isBiometricsSupported, hasBiometricsEnabled, enableBiometrics, unlockWithBiometrics } from "@/lib/biometrics";
 
-export function Auth({ 
-  onLogin,
-  initialSessionActive = false,
-  initialEmail = ""
-}: { 
-  onLogin: (masterPass: string) => void,
-  initialSessionActive?: boolean,
-  initialEmail?: string
-}) {
+export function Auth({ onLogin }: { onLogin: (masterPass: string) => void }) {
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState(initialEmail);
-  const [password, setPassword] = useState("");
   const [masterPassword, setMasterPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [forgotSent, setForgotSent] = useState(false);
   const { setTheme, resolvedTheme } = useTheme();
 
   const themeToggleButton = (
@@ -71,31 +57,10 @@ export function Auth({
   const [isBioSupported] = useState(() => isBiometricsSupported());
   const [hasBio] = useState(() => hasBiometricsEnabled());
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Enter your email above first, then click Forgot Password.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) throw error;
-      setForgotSent(true);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccessMessage(null);
 
     if (!masterPassword || masterPassword.length < 8) {
       setError("Master key must be at least 8 characters long.");
@@ -103,40 +68,16 @@ export function Auth({
       return;
     }
 
-    try {
-      if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        
-        if (data?.user?.identities && data.user.identities.length === 0) {
-          throw new Error("An account with this email already exists. Please sign in instead.");
-        }
-
-        setSuccessMessage("We've sent a secure link to confirm your account. Please click it to continue.");
-        setLoading(false);
-        return;
-      }
-
-      // Sign in: skip if we already have an active session
-      if (!initialSessionActive) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
-      
-      // If no PIN is set yet, OR if biometrics are supported but not set up, offer to set up
-      if (!hasPinLock() || (isBioSupported && !hasBio)) {
-        setPendingMaster(masterPassword);
-        setPinSetupPhase("prompt");
-        setLoading(false);
-        return;
-      }
-
-      onLogin(masterPassword);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred during authentication.");
-    } finally {
+    // If no PIN is set yet, OR if biometrics are supported but not set up, offer to set up.
+    if (!hasPinLock() || (isBioSupported && !hasBio)) {
+      setPendingMaster(masterPassword);
+      setPinSetupPhase("prompt");
       setLoading(false);
+      return;
     }
+
+    onLogin(masterPassword);
+    setLoading(false);
   };
 
   // ── PIN setup helpers ─────────────────────────────────────────────────────
@@ -326,75 +267,18 @@ export function Auth({
   return (
     <div className="flex h-dvh w-full items-center justify-center bg-background px-4 sm:px-0 font-sans relative">
       {themeToggleButton}
-      <motion.div 
+      <motion.div
         className="w-full max-w-sm"
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
       >
         <div className="space-y-4 text-center pb-8 min-h-[72px]">
-          <AnimatePresence mode="wait">
-            <motion.h1 
-              key={isSignUp ? "signup" : "signin"}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="text-[28px] font-semibold tracking-tight text-foreground"
-            >
-              {initialSessionActive
-                ? "Enter your Master Key"
-                : isSignUp
-                ? "Create Telkar Vault"
-                : "Sign in to Telkar Vault"}
-            </motion.h1>
-          </AnimatePresence>
+          <h1 className="text-[28px] font-semibold tracking-tight text-foreground">Enter your Master Key</h1>
+          <p className="text-[14px] leading-6 text-muted-foreground">Unlock your encrypted vault for this session.</p>
         </div>
-        
-        {successMessage ? (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center space-y-6 py-6"
-          >
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-            </div>
-            <div className="text-center space-y-2">
-              <h2 className="text-[20px] font-semibold text-foreground">Check your email</h2>
-              <p className="text-[14px] text-muted-foreground leading-relaxed px-4">{successMessage}</p>
-            </div>
-            <button 
-              type="button"
-              onClick={() => { setSuccessMessage(null); setIsSignUp(false); }}
-              className="mt-6 w-full py-3.5 rounded-xl bg-foreground text-background font-semibold text-[15px] hover:opacity-90 transition-opacity"
-            >
-              Back to Sign In
-            </button>
-          </motion.div>
-        ) : (
-          <>
-        {/* Sign In / Create Account toggle — hidden when session already exists */}
-        {!initialSessionActive && (
-          <div className="flex bg-muted/50 p-1 rounded-xl mx-auto w-fit mb-6">
-            <button 
-              type="button"
-              onClick={() => setIsSignUp(false)}
-              className={`px-6 py-1.5 rounded-lg text-[14px] font-medium transition-all duration-200 ${!isSignUp ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Sign In
-            </button>
-            <button 
-              type="button"
-              onClick={() => setIsSignUp(true)}
-              className={`px-6 py-1.5 rounded-lg text-[14px] font-medium transition-all duration-200 ${isSignUp ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Create Account
-            </button>
-          </div>
-        )}
 
-        {initialSessionActive && hasBio && (
+        {hasBio && (
           <div className="mb-6">
             <button
               onClick={async () => {
@@ -409,9 +293,9 @@ export function Auth({
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-foreground text-background font-medium hover:opacity-90 transition-opacity"
             >
               <FaceIdIcon className="w-[22px] h-[22px]" />
-              Sign in with Face ID / Touch ID
+              Unlock with Face ID / Touch ID
             </button>
-            
+
             <div className="flex items-center gap-4 my-6">
               <div className="h-px bg-border flex-1" />
               <span className="text-[12px] text-muted-foreground uppercase tracking-widest font-semibold">Or Use Master Key</span>
@@ -422,34 +306,6 @@ export function Auth({
 
         <form onSubmit={handleAuth} className="space-y-6">
           <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-            {!initialSessionActive && (
-              <>
-                <div className="relative border-b border-border focus-within:bg-muted/30 transition-colors">
-                  <label htmlFor="email" className="absolute top-2 left-4 text-[12px] text-muted-foreground pointer-events-none font-medium uppercase tracking-wider">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                    className="w-full pt-7 pb-2.5 px-4 text-[17px] text-foreground focus:outline-none bg-transparent"
-                  />
-                </div>
-                <div className="relative border-b border-border focus-within:bg-muted/30 transition-colors">
-                  <label htmlFor="password" className="absolute top-2 left-4 text-[12px] text-muted-foreground pointer-events-none font-medium uppercase tracking-wider">Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete={isSignUp ? "new-password" : "current-password"}
-                    className="w-full pt-7 pb-2.5 px-4 text-[17px] text-foreground focus:outline-none bg-transparent"
-                  />
-                </div>
-              </>
-            )}
             <div className="relative focus-within:bg-muted/30 transition-colors">
               <label htmlFor="masterPassword" className="absolute top-2 left-4 text-[12px] text-muted-foreground pointer-events-none font-medium uppercase tracking-wider">Master Key (Min 8)</label>
               <input
@@ -459,8 +315,8 @@ export function Auth({
                 onChange={(e) => setMasterPassword(e.target.value)}
                 required
                 minLength={8}
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-                autoFocus={initialSessionActive}
+                autoComplete="current-password"
+                autoFocus
                 className="w-full pt-7 pb-2.5 px-4 text-[17px] text-foreground focus:outline-none bg-transparent pr-12"
               />
               <button
@@ -478,82 +334,18 @@ export function Auth({
           </div>
           
           <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className={`border rounded-lg p-4 mt-4 text-center shadow-sm ${
-                error.startsWith("✅")
-                  ? "bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-destructive/10 border-destructive/30"
-              }`}
-            >
-              <p className={`text-[13px] font-medium leading-relaxed ${
-                error.startsWith("✅") ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
-              }`}>{error}</p>
-            </motion.div>
-          )}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="border rounded-lg p-4 mt-4 text-center shadow-sm bg-destructive/10 border-destructive/30"
+              >
+                <p className="text-[13px] font-medium leading-relaxed text-destructive">{error}</p>
+              </motion.div>
+            )}
           </AnimatePresence>
         </form>
-
-        <div className="mt-8 text-center space-y-4">
-          {!isSignUp && !initialSessionActive && (
-            <div>
-              {forgotSent ? (
-                <p className="text-[14px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✅ Password reset link sent to your email!
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  disabled={loading}
-                  className="text-[14px] text-muted-foreground hover:text-foreground transition-colors font-medium disabled:opacity-50"
-                >
-                  Forgot password? <span className="text-[11px] opacity-70 inline-block ml-0.5">↗</span>
-                </button>
-              )}
-            </div>
-          )}
-          {!initialSessionActive && (
-            <div className="text-[15px] text-foreground">
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={isSignUp ? "signup_prompt" : "signin_prompt"}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="inline-block"
-                >
-                  {isSignUp ? "Already have an account?" : "Don't have a Vault Account?"}
-                </motion.span>
-              </AnimatePresence>{" "}
-              <button
-                type="button"
-                className="font-semibold text-foreground hover:underline"
-                onClick={() => setIsSignUp(!isSignUp)}
-              >
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={isSignUp ? "signup_btn" : "signin_btn"}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="inline-block"
-                  >
-                    {isSignUp ? "Sign In" : "Create Your Account"}
-                  </motion.span>
-                </AnimatePresence>
-                <span className="text-[12px] opacity-70 inline-block ml-0.5">↗</span>
-              </button>
-            </div>
-          )}
-        </div>
-          </>
-        )}
       </motion.div>
     </div>
   );

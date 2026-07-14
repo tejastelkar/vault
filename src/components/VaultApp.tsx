@@ -20,8 +20,9 @@ import { clearLocalVaultSession } from "@/lib/vaultSession";
 import { useAutoLock } from "@/hooks/useAutoLock";
 import { useConnectivity } from "@/hooks/useConnectivity";
 import { ConnectivityBanner } from "@/components/ConnectivityBanner";
-import { aiSearchVault } from "./actions";
+import { aiSearchVault } from "@/app/actions";
 import { getVaultAccessToken } from "@/lib/authToken";
+import { useVaultKey } from "@/components/auth/VaultKeyProvider";
 import { User } from "@supabase/supabase-js";
 import {
   KeyRoundIcon,
@@ -103,11 +104,11 @@ const ALL_TABS_WITH_PROFILE = [
   { tab: "profile" as Tab, icon: UserCircleIcon, label: "Settings" },
 ];
 
-export default function Home() {
+export default function VaultApp() {
   const prefersReducedMotion = useReducedMotion();
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
-  const [masterPassword, setMasterPassword] = useState<string | null>(null);
+  const { masterKey: masterPassword, setMasterKey, clearMasterKey } = useVaultKey();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [showPinLock, setShowPinLock] = useState(false);
@@ -147,12 +148,12 @@ export default function Home() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSessionUser(session?.user ?? null);
       if (event === "SIGNED_OUT") {
-        setMasterPassword(null);
+        clearMasterKey();
         clearLocalVaultSession();
       }
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [clearMasterKey]);
 
   // Cmd+K -> open search overlay
   useEffect(() => {
@@ -179,7 +180,7 @@ export default function Home() {
   }, [searchOpen]);
 
   const handleLogin = (masterPass: string) => {
-    setMasterPassword(masterPass);
+    setMasterKey(masterPass);
     setShowPinLock(false);
     setShowFullAuth(false);
   };
@@ -187,20 +188,20 @@ export default function Home() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     clearLocalVaultSession();
-    setMasterPassword(null);
+    clearMasterKey();
     setShowPinLock(false);
     setShowFullAuth(false);
   };
 
   const handleLockVault = useCallback(() => {
     clearLocalVaultSession();
-    setMasterPassword(null);
+    clearMasterKey();
     const pinEnabled = hasPinLock();
     setShowPinLock(pinEnabled);
     setShowFullAuth(!pinEnabled);
     setSearchOpen(false);
     setIsGlobalImportOpen(false);
-  }, []);
+  }, [clearMasterKey]);
 
   useAutoLock({ enabled: Boolean(sessionUser && masterPassword), onLock: handleLockVault });
 
@@ -300,7 +301,7 @@ export default function Home() {
     return (
       <PinLock
         onUnlock={(mk) => {
-          setMasterPassword(mk);
+          setMasterKey(mk);
         }}
         onFallback={() => {
           setShowPinLock(false);
@@ -311,7 +312,7 @@ export default function Home() {
   }
 
   if (!sessionUser || !masterPassword) {
-    return <Auth onLogin={handleLogin} initialSessionActive={!!sessionUser} initialEmail={sessionUser?.email} />;
+    return <Auth onLogin={handleLogin} />;
   }
 
   const sharedProps = { masterPassword, focusedItemId };

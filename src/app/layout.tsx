@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/Toast";
+import { VaultKeyProvider } from "@/components/auth/VaultKeyProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,12 +54,13 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
         >
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+          <VaultKeyProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </VaultKeyProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
-

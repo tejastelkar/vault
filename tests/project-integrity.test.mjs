@@ -6,7 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 test("document queries consistently use the vault_documents table", () => {
   const files = [
-    "src/app/page.tsx",
+    "src/components/VaultApp.tsx",
     "src/components/Dashboard.tsx",
     "src/components/DocumentVault.tsx",
     "src/components/GlobalSearch.tsx",
@@ -34,7 +34,7 @@ test("SQL setup covers all vault tables and update policies preserve ownership",
 
 test("raw account password and master key are not persisted in localStorage", () => {
   const auth = read("src/components/Auth.tsx");
-  const page = read("src/app/page.tsx");
+  const page = read("src/components/VaultApp.tsx");
   assert.equal(auth.includes("vault_password"), false);
   assert.equal(auth.includes("vault_master_key"), false);
   assert.equal(auth.includes("localStorage.setItem(\"vault_email\""), false);
@@ -87,7 +87,7 @@ test("Apple visual primitives include safe areas, focus, and reduced motion", ()
 });
 
 test("mobile shell keeps iOS-style safe areas and native tab treatment", () => {
-  const page = read("src/app/page.tsx");
+  const page = read("src/components/VaultApp.tsx");
   const css = read("src/app/globals.css");
 
   assert.match(page, /ios-app-shell/);
@@ -101,7 +101,7 @@ test("mobile shell keeps iOS-style safe areas and native tab treatment", () => {
 });
 
 test("responsive shell uses the shared Apple ecosystem chrome", () => {
-  const page = read("src/app/page.tsx");
+  const page = read("src/components/VaultApp.tsx");
   for (const klass of ["apple-app", "apple-sidebar", "vault-header", "vault-header-search", "apple-tabbar"]) {
     assert.match(page, new RegExp(klass));
   }
@@ -109,7 +109,7 @@ test("responsive shell uses the shared Apple ecosystem chrome", () => {
 });
 
 test("adaptive header separates desktop search and mobile actions", () => {
-  const page = read("src/app/page.tsx");
+  const page = read("src/components/VaultApp.tsx");
   const css = read("src/app/globals.css");
 
   for (const klass of ["vault-header", "vault-header-title", "vault-header-search", "vault-header-actions", "vault-header-mobile-search"]) {
@@ -235,7 +235,7 @@ test("Bank Vault locks desktop master and detail into a compact two-column works
 
 test("desktop master-detail starts at the same breakpoint as the desktop sidebar", () => {
   const css = read("src/app/globals.css");
-  const page = read("src/app/page.tsx");
+  const page = read("src/components/VaultApp.tsx");
   const settings = read("src/components/settings/Settings.tsx");
   const wallet = read("src/components/WalletVault.tsx");
   assert.match(css, /@media \(min-width:\s*768px\)[\s\S]*?\.apple-bank-master-detail\s*\{[^}]*grid-template-columns/);
