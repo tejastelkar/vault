@@ -589,6 +589,11 @@ using (
   )
 );
 
+drop policy if exists "Users can view own wallet items" on public.secure_wallet;
+drop policy if exists "Users can insert own wallet items" on public.secure_wallet;
+drop policy if exists "Users can update own wallet items" on public.secure_wallet;
+drop policy if exists "Users can delete own wallet items" on public.secure_wallet;
+
 drop policy if exists "Users can view their own wallet items" on public.secure_wallet;
 create policy "Users can view their own wallet items"
 on public.secure_wallet for select to authenticated
@@ -644,6 +649,13 @@ using (
       and member.status = 'active'
   )
 );
+
+drop policy if exists "Avatar images are publicly accessible" on storage.objects;
+
+drop policy if exists "Users can read their own documents" on storage.objects;
+drop policy if exists "Users can upload their own documents" on storage.objects;
+drop policy if exists "Users can update their own documents" on storage.objects;
+drop policy if exists "Users can delete their own documents" on storage.objects;
 
 drop policy if exists "Users can read their own document files" on storage.objects;
 create policy "Users can read their own document files"

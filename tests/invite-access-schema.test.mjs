@@ -75,7 +75,7 @@ test("vault table policies protect the complete operation matrix", () => {
   }
 });
 
-test("storage policies protect every private operation and preserve public avatar reads", () => {
+test("storage policies protect every private operation without enabling public bucket listing", () => {
   const matrix = [
     { bucket: "vault_documents", operations: ["select", "insert", "update", "delete"] },
     { bucket: "avatars", operations: ["insert", "update", "delete"] },
@@ -96,5 +96,26 @@ test("storage policies protect every private operation and preserve public avata
     }
   }
 
-  assert.doesNotMatch(sql, /drop policy if exists "Avatar images are publicly accessible"/i);
+  assert.match(sql, /drop policy if exists "Avatar images are publicly accessible" on storage\.objects/i);
+});
+
+test("invite schema removes legacy policies that bypass active membership", () => {
+  const legacyPolicies = [
+    ["Users can view own wallet items", "public.secure_wallet"],
+    ["Users can insert own wallet items", "public.secure_wallet"],
+    ["Users can update own wallet items", "public.secure_wallet"],
+    ["Users can delete own wallet items", "public.secure_wallet"],
+    ["Users can read their own documents", "storage.objects"],
+    ["Users can upload their own documents", "storage.objects"],
+    ["Users can update their own documents", "storage.objects"],
+    ["Users can delete their own documents", "storage.objects"],
+  ];
+
+  for (const [policy, resource] of legacyPolicies) {
+    assert.match(
+      sql,
+      new RegExp(`drop policy if exists "${policy}" on ${resource.replace(".", "\\.")}`, "i"),
+      `${policy} must be removed so it cannot bypass the active-member policy`,
+    );
+  }
 });
