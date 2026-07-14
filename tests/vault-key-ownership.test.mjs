@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   canUseVaultWrapper,
+  commitForExpectedAuthenticatedUser,
   commitVaultKeyForExpectedUser,
   requireAuthenticatedVaultUserId,
   requireVaultWrapperOwner,
@@ -54,6 +55,22 @@ test("a same-user unlock result commits to its captured owner", () => {
   assert.equal(scopeVaultKeyToAuthenticatedUser(storedKey, storedOwnerUserId, USER_A), "raw-master-key-a");
 });
 
+test("a stale User A enrollment cannot overwrite User B's wrapper", () => {
+  let liveUserId = USER_A;
+  let wrapper = { ownerUserId: USER_B, ciphertext: "wrapped-master-key-b" };
+  const expectedUserId = liveUserId;
+
+  liveUserId = USER_B;
+  const accepted = commitForExpectedAuthenticatedUser(
+    expectedUserId,
+    (candidateUserId) => candidateUserId === liveUserId,
+    (ownerUserId) => { wrapper = { ownerUserId, ciphertext: "wrapped-master-key-a" }; },
+  );
+
+  assert.equal(accepted, false);
+  assert.deepEqual(wrapper, { ownerUserId: USER_B, ciphertext: "wrapped-master-key-b" });
+});
+
 test("an authenticated user change invalidates User A raw and wrapped keys for User B", () => {
   const rawKeyA = "raw-master-key-a";
   const wrappedKeyA = { ownerUserId: USER_A, ciphertext: "wrapped-master-key-a" };
@@ -84,11 +101,14 @@ test("PIN and biometric helpers persist and require explicit ownership", () => {
   const biometrics = read("src/lib/biometrics.ts");
 
   assert.match(pin, /ownerUserId/);
-  assert.match(pin, /savePinForMaster\(pin:\s*string,\s*masterKey:\s*string,\s*userId:\s*string\)/);
-  assert.match(pin, /verifyPinAndRecoverMaster\(pin:\s*string,\s*userId:\s*string\)/);
-  assert.match(pin, /savePinForMaster\(pin,\s*masterKey,\s*ownerUserId\)/);
+  assert.match(pin, /savePinForMaster\([\s\S]*userId:\s*string,[\s\S]*isAuthenticatedUserCurrent:\s*AuthenticatedUserPredicate/);
+  assert.match(pin, /isAuthenticatedUserCurrent/);
+  assert.match(pin, /verifyPinAndRecoverMaster\([\s\S]*isAuthenticatedUserCurrent/);
+  assert.match(pin, /const inputHash[\s\S]*isAuthenticatedUserCurrent\(ownerUserId\)[\s\S]*if \(inputHash !== parsed\.hash\)/);
+  assert.match(pin, /savePinForMaster\(pin,\s*masterKey,\s*ownerUserId,\s*isAuthenticatedUserCurrent\)/);
   assert.match(biometrics, /BIO_OWNER_KEY/);
-  assert.match(biometrics, /enableBiometrics\(masterKey:\s*string,\s*userId:\s*string\)/);
+  assert.match(biometrics, /enableBiometrics\([\s\S]*userId:\s*string,[\s\S]*isAuthenticatedUserCurrent:\s*AuthenticatedUserPredicate/);
+  assert.match(biometrics, /commitForExpectedAuthenticatedUser/);
   assert.match(biometrics, /unlockWithBiometrics\(userId:\s*string\)/);
 });
 
@@ -109,6 +129,7 @@ test("every PIN and biometric UI call site supplies the authenticated user id", 
   assert.match(provider, /authenticatedUserId:\s*string \| null/);
   assert.match(provider, /setMasterKey:\s*\(value:\s*string,\s*expectedUserId:\s*string\)\s*=>\s*boolean/);
   assert.match(provider, /commitVaultKeyForExpectedUser\([\s\S]*currentUserIdRef\.current/);
+  assert.match(provider, /isAuthenticatedUserCurrent:\s*\(expectedUserId:\s*string\)\s*=>\s*boolean/);
 
   const auth = read("src/components/Auth.tsx");
   const pinLock = read("src/components/PinLock.tsx");

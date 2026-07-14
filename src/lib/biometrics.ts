@@ -1,6 +1,6 @@
 "use client";
 
-import { canUseVaultWrapper, requireAuthenticatedVaultUserId, requireVaultWrapperOwner } from "@/lib/vaultKeyOwnership";
+import { canUseVaultWrapper, commitForExpectedAuthenticatedUser, requireAuthenticatedVaultUserId, requireVaultWrapperOwner, type AuthenticatedUserPredicate } from "@/lib/vaultKeyOwnership";
 
 // Keys for localStorage
 const BIO_ENCRYPTED_KEY = "vault_bio_encrypted_master";
@@ -88,8 +88,13 @@ export function disableBiometrics(userId: string): void {
   localStorage.removeItem(BIO_OWNER_KEY);
 }
 
-export async function enableBiometrics(masterKey: string, userId: string): Promise<void> {
+export async function enableBiometrics(
+  masterKey: string,
+  userId: string,
+  isAuthenticatedUserCurrent: AuthenticatedUserPredicate,
+): Promise<void> {
   const ownerUserId = requireAuthenticatedVaultUserId(userId);
+  if (!isAuthenticatedUserCurrent(ownerUserId)) throw new Error("The authenticated account changed during biometric enrollment.");
   if (!isBiometricsSupported()) throw new Error("Biometrics not supported on this device/browser.");
 
   // Generate a secure 32-byte (256-bit) AES key
@@ -131,10 +136,17 @@ export async function enableBiometrics(masterKey: string, userId: string): Promi
   // Save the encrypted master key
   const encryptedMaster = await encryptWithRawKey(masterKey, aesKey);
   
-  localStorage.setItem(BIO_ENCRYPTED_KEY, encryptedMaster);
-  // Store the credential ID so we can specify it in the allowList later
-  localStorage.setItem(BIO_CRED_ID, credential.id);
-  localStorage.setItem(BIO_OWNER_KEY, ownerUserId);
+  const committed = commitForExpectedAuthenticatedUser(
+    ownerUserId,
+    isAuthenticatedUserCurrent,
+    (verifiedOwnerUserId) => {
+      localStorage.setItem(BIO_ENCRYPTED_KEY, encryptedMaster);
+      // Store the credential ID so we can specify it in the allowList later
+      localStorage.setItem(BIO_CRED_ID, credential.id);
+      localStorage.setItem(BIO_OWNER_KEY, verifiedOwnerUserId);
+    },
+  );
+  if (!committed) throw new Error("The authenticated account changed during biometric enrollment.");
 }
 
 export async function unlockWithBiometrics(userId: string): Promise<string> {

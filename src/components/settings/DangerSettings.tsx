@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { LocalVerificationSheet } from "@/components/settings/LocalVerificationSheet";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/Toast";
-import { vaultFetch } from "@/lib/authToken";
+import { getExpectedUserAuthorization, vaultFetchWithAccessToken } from "@/lib/authToken";
+import { useVaultKey } from "@/components/auth/VaultKeyProvider";
 
 type DangerAction = "clear" | "account";
 
@@ -18,33 +19,37 @@ export function DangerSettings({ masterPassword }: { masterPassword: string }) {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const { isAuthenticatedUserCurrent } = useVaultKey();
 
-  const runAction = async () => {
+  const runAction = async (expectedUserId: string) => {
     if (!action) return;
     setWorking(true);
     setError(null);
     try {
+      const { accessToken, userClient } = await getExpectedUserAuthorization(expectedUserId);
       if (action === "account") {
-        const response = await vaultFetch("/api/delete-account", { method: "POST" });
+        const response = await vaultFetchWithAccessToken(accessToken, "/api/delete-account", { method: "POST" });
         const payload = await response.json() as { error?: string };
         if (!response.ok) throw new Error(payload.error ?? "Account deletion failed.");
-        await supabase.auth.signOut({ scope: "global" });
+        if (isAuthenticatedUserCurrent(expectedUserId)) {
+          await supabase.auth.signOut({ scope: "global" });
+        }
         window.location.assign("/");
         return;
       }
 
-      const { data: documents, error: documentError } = await supabase.from("vault_documents").select("storage_path");
+      const { data: documents, error: documentError } = await userClient.from("vault_documents").select("storage_path");
       if (documentError) throw documentError;
       const paths = (documents ?? []).map((document) => document.storage_path).filter(Boolean);
       if (paths.length) {
-        const { error: storageError } = await supabase.storage.from("vault_documents").remove(paths);
+        const { error: storageError } = await userClient.storage.from("vault_documents").remove(paths);
         if (storageError) throw storageError;
       }
       const deletions = await Promise.all([
-        supabase.from("vault_documents").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
-        supabase.from("vault_items").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
-        supabase.from("secure_notes").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
-        supabase.from("secure_wallet").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+        userClient.from("vault_documents").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+        userClient.from("vault_items").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+        userClient.from("secure_notes").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+        userClient.from("secure_wallet").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
       ]);
       const deletionError = deletions.find((result) => result.error)?.error;
       if (deletionError) throw deletionError;
@@ -76,7 +81,7 @@ export function DangerSettings({ masterPassword }: { masterPassword: string }) {
         </AdaptiveSheetBody>
         <AdaptiveSheetFooter><Button variant="ghost" disabled={working} onClick={() => setAction(null)}>Cancel</Button><Button variant="destructive" disabled={confirmation !== "DELETE" || working} onClick={() => setVerifyOpen(true)}>{working ? <Loader2Icon className="animate-spin" /> : actionLabel}</Button></AdaptiveSheetFooter>
       </AdaptiveSheet>
-      <LocalVerificationSheet open={verifyOpen} onOpenChange={setVerifyOpen} masterPassword={masterPassword} onVerified={() => { void runAction(); }} />
+      <LocalVerificationSheet open={verifyOpen} onOpenChange={setVerifyOpen} masterPassword={masterPassword} onVerified={(expectedUserId) => { void runAction(expectedUserId); }} />
     </section>
   );
 }

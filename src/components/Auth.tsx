@@ -10,7 +10,7 @@ import { isBiometricsSupported, hasBiometricsEnabled, enableBiometrics, unlockWi
 import { useVaultKey } from "@/components/auth/VaultKeyProvider";
 
 export function Auth({ onLogin }: { onLogin: (masterPass: string, expectedUserId: string) => boolean }) {
-  const { authenticatedUserId } = useVaultKey();
+  const { authenticatedUserId, isAuthenticatedUserCurrent } = useVaultKey();
   const [loading, setLoading] = useState(false);
   const [masterPassword, setMasterPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +121,7 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string, expectedUserId
         } else {
           // Save and unlock
           setSavingPin(true);
-          void savePinForMaster(pinStr, pendingMaster!, expectedUserId)
+          void savePinForMaster(pinStr, pendingMaster!, expectedUserId, isAuthenticatedUserCurrent)
             .then(() => {
               if (!onLogin(pendingMaster!, expectedUserId)) {
                 setPinError("Your authenticated account changed before the vault finished unlocking.");
@@ -173,7 +173,7 @@ export function Auth({ onLogin }: { onLogin: (masterPass: string, expectedUserId
                     try {
                       const expectedUserId = pendingUserId;
                       if (!expectedUserId || authenticatedUserId !== expectedUserId) throw new Error("Your authenticated account could not be verified.");
-                      await enableBiometrics(pendingMaster!, expectedUserId);
+                      await enableBiometrics(pendingMaster!, expectedUserId, isAuthenticatedUserCurrent);
                       if (!onLogin(pendingMaster!, expectedUserId)) {
                         throw new Error("Your authenticated account changed before the vault finished unlocking.");
                       }

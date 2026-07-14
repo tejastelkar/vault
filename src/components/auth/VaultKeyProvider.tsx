@@ -3,12 +3,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { clearLocalVaultSession } from "@/lib/vaultSession";
-import { commitVaultKeyForExpectedUser, scopeVaultKeyToAuthenticatedUser, shouldClearVaultKeyForAuthChange } from "@/lib/vaultKeyOwnership";
+import { canUseVaultWrapper, commitVaultKeyForExpectedUser, scopeVaultKeyToAuthenticatedUser, shouldClearVaultKeyForAuthChange } from "@/lib/vaultKeyOwnership";
 
 type VaultKeyContextValue = {
   authenticatedUserId: string | null;
   masterKey: string | null;
   setMasterKey: (value: string, expectedUserId: string) => boolean;
+  isAuthenticatedUserCurrent: (expectedUserId: string) => boolean;
   clearMasterKey: () => void;
 };
 
@@ -38,6 +39,11 @@ export function VaultKeyProvider({ children }: { children: React.ReactNode }) {
     )
   ), []);
 
+  const isAuthenticatedUserCurrent = useCallback(
+    (expectedUserId: string) => canUseVaultWrapper(expectedUserId, currentUserIdRef.current),
+    [],
+  );
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const previousUserId = currentUserIdRef.current;
@@ -59,9 +65,10 @@ export function VaultKeyProvider({ children }: { children: React.ReactNode }) {
       authenticatedUserId,
       masterKey: scopedMasterKey,
       setMasterKey,
+      isAuthenticatedUserCurrent,
       clearMasterKey,
     }),
-    [authenticatedUserId, clearMasterKey, scopedMasterKey, setMasterKey],
+    [authenticatedUserId, clearMasterKey, isAuthenticatedUserCurrent, scopedMasterKey, setMasterKey],
   );
 
   return <VaultKeyContext.Provider value={value}>{children}</VaultKeyContext.Provider>;

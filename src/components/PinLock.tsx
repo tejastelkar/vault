@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { XCircleIcon } from "lucide-react";
 import { FaceIdIcon, AppleLockIcon } from "@/components/Icons";
 import { hasBiometricsEnabled, unlockWithBiometrics } from "@/lib/biometrics";
-import { canUseVaultWrapper, requireAuthenticatedVaultUserId, requireVaultWrapperOwner } from "@/lib/vaultKeyOwnership";
+import { useVaultKey } from "@/components/auth/VaultKeyProvider";
+import { canUseVaultWrapper, commitForExpectedAuthenticatedUser, requireAuthenticatedVaultUserId, requireVaultWrapperOwner, type AuthenticatedUserPredicate } from "@/lib/vaultKeyOwnership";
 
 const MAX_ATTEMPTS = 3;
 const PIN_STORAGE_KEY = "vault_pin_hash";
@@ -73,13 +74,26 @@ async function decryptWithPin(cipherB64: string, pin: string, salt: string, iter
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-export async function savePinForMaster(pin: string, masterKey: string, userId: string) {
+export async function savePinForMaster(
+  pin: string,
+  masterKey: string,
+  userId: string,
+  isAuthenticatedUserCurrent: AuthenticatedUserPredicate,
+) {
   const ownerUserId = requireAuthenticatedVaultUserId(userId);
+  if (!isAuthenticatedUserCurrent(ownerUserId)) throw new Error("The authenticated account changed during PIN enrollment.");
   const salt = crypto.randomUUID();
   const pinHash = await hashPin(pin, salt, PIN_ITERATIONS);
   const encryptedMaster = await encryptWithPin(masterKey, pin, salt, PIN_ITERATIONS);
-  localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify({ hash: pinHash, salt, iterations: PIN_ITERATIONS, ownerUserId }));
-  localStorage.setItem(PIN_ENCRYPTED_KEY, encryptedMaster);
+  const committed = commitForExpectedAuthenticatedUser(
+    ownerUserId,
+    isAuthenticatedUserCurrent,
+    (verifiedOwnerUserId) => {
+      localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify({ hash: pinHash, salt, iterations: PIN_ITERATIONS, ownerUserId: verifiedOwnerUserId }));
+      localStorage.setItem(PIN_ENCRYPTED_KEY, encryptedMaster);
+    },
+  );
+  if (!committed) throw new Error("The authenticated account changed during PIN enrollment.");
 }
 
 function readPinMetadata(): PinMetadata | null {
@@ -108,7 +122,11 @@ export function clearPinLock() {
   localStorage.removeItem(PIN_ENCRYPTED_KEY);
 }
 
-export async function verifyPinAndRecoverMaster(pin: string, userId: string): Promise<string> {
+export async function verifyPinAndRecoverMaster(
+  pin: string,
+  userId: string,
+  isAuthenticatedUserCurrent: AuthenticatedUserPredicate,
+): Promise<string> {
   const parsed = readPinMetadata();
   const encryptedMaster = localStorage.getItem(PIN_ENCRYPTED_KEY);
   if (!parsed || !encryptedMaster) {
@@ -123,6 +141,9 @@ export async function verifyPinAndRecoverMaster(pin: string, userId: string): Pr
       throw new Error("Invalid PIN enrollment.");
     }
     const inputHash = await hashPin(pin, parsed.salt, iterations);
+    if (!isAuthenticatedUserCurrent(ownerUserId)) {
+      throw new Error("The authenticated account changed during PIN verification.");
+    }
     if (inputHash !== parsed.hash) {
       const attempts = Number.parseInt(localStorage.getItem("vault_pin_attempts") || "0", 10) + 1;
       localStorage.setItem("vault_pin_attempts", String(attempts));
@@ -136,7 +157,7 @@ export async function verifyPinAndRecoverMaster(pin: string, userId: string): Pr
     }
 
     const masterKey = await decryptWithPin(encryptedMaster, pin, parsed.salt, iterations);
-    if (iterations < PIN_ITERATIONS) await savePinForMaster(pin, masterKey, ownerUserId);
+    if (iterations < PIN_ITERATIONS) await savePinForMaster(pin, masterKey, ownerUserId, isAuthenticatedUserCurrent);
     localStorage.removeItem("vault_pin_attempts");
     return masterKey;
   } catch (error) {
@@ -154,6 +175,7 @@ interface PinLockProps {
 }
 
 export function PinLock({ authenticatedUserId, onUnlock, onFallback }: PinLockProps) {
+  const { isAuthenticatedUserCurrent } = useVaultKey();
   const [digits, setDigits] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(() => {
@@ -200,7 +222,7 @@ export function PinLock({ authenticatedUserId, onUnlock, onFallback }: PinLockPr
   const verifyPin = async (pin: string) => {
     setChecking(true);
     try {
-      const masterKey = await verifyPinAndRecoverMaster(pin, authenticatedUserId);
+      const masterKey = await verifyPinAndRecoverMaster(pin, authenticatedUserId, isAuthenticatedUserCurrent);
       if (!onUnlock(masterKey, authenticatedUserId)) {
         throw new Error("Your authenticated account changed before the vault finished unlocking.");
       }

@@ -67,7 +67,7 @@ interface DashboardWalletItem {
 }
 
 export function Dashboard({ masterPassword }: DashboardProps) {
-  const { authenticatedUserId } = useVaultKey();
+  const { authenticatedUserId, isAuthenticatedUserCurrent } = useVaultKey();
   const [stats, setStats] = useState({
     passwords: 0,
     documents: 0,
@@ -270,7 +270,7 @@ export function Dashboard({ masterPassword }: DashboardProps) {
                 onClick={async () => {
                   try {
                     if (!authenticatedUserId) throw new Error("Your authenticated account could not be verified.");
-                    await enableBiometrics(masterPassword, authenticatedUserId);
+                    await enableBiometrics(masterPassword, authenticatedUserId, isAuthenticatedUserCurrent);
                     setShowBioBanner(false);
                   } catch (error: unknown) {
                     alert(error instanceof Error ? error.message : "Biometric enrollment failed.");

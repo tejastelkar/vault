@@ -24,7 +24,7 @@ function currentDeviceLabel() {
 }
 
 export function SecuritySettings({ masterPassword, onLock }: { masterPassword: string; onLock: () => void }) {
-  const { authenticatedUserId } = useVaultKey();
+  const { authenticatedUserId, isAuthenticatedUserCurrent } = useVaultKey();
   const [preferences, setPreferences] = useState<VaultPreferences>(() => loadVaultPreferences());
   const [bioEnabled, setBioEnabled] = useState(false);
   const [bioSupported, setBioSupported] = useState(false);
@@ -55,7 +55,7 @@ export function SecuritySettings({ masterPassword, onLock }: { masterPassword: s
         setBioEnabled(false);
         toast("Biometric unlock disabled on this device", "info");
       } else {
-        await enableBiometrics(masterPassword, authenticatedUserId);
+        await enableBiometrics(masterPassword, authenticatedUserId, isAuthenticatedUserCurrent);
         setBioEnabled(true);
         toast("Biometric unlock enabled", "success");
       }

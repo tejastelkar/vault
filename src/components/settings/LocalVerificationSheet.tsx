@@ -1,56 +1,93 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FingerprintIcon, Loader2Icon, LockKeyholeIcon } from "lucide-react";
 import { AdaptiveSheet, AdaptiveSheetBody, AdaptiveSheetFooter } from "@/components/ui/adaptive-sheet";
 import { Button } from "@/components/ui/button";
 import { hasBiometricsEnabled, unlockWithBiometrics } from "@/lib/biometrics";
 import { hasPinLock, verifyPinAndRecoverMaster } from "@/components/PinLock";
 import { useVaultKey } from "@/components/auth/VaultKeyProvider";
+import { commitForExpectedAuthenticatedUser } from "@/lib/vaultKeyOwnership";
 
 export function LocalVerificationSheet(props: {
   open: boolean;
   masterPassword: string;
   onOpenChange: (open: boolean) => void;
-  onVerified: () => void;
+  onVerified: (expectedUserId: string) => void;
 }) {
-  const { authenticatedUserId } = useVaultKey();
+  const { authenticatedUserId, isAuthenticatedUserCurrent } = useVaultKey();
   const [value, setValue] = useState("");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<"biometric" | "pin" | "master">("master");
+  const verificationAttemptRef = useRef(0);
+  const mountedRef = useRef(false);
   const usesBio = mode === "biometric";
   const usesPin = mode === "pin";
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      verificationAttemptRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    const attempt = ++verificationAttemptRef.current;
     if (!props.open) return;
-    queueMicrotask(() => setMode(
-      authenticatedUserId && hasBiometricsEnabled(authenticatedUserId)
-        ? "biometric"
-        : authenticatedUserId && hasPinLock(authenticatedUserId)
-          ? "pin"
-          : "master"
-    ));
+    queueMicrotask(() => {
+      if (!mountedRef.current || verificationAttemptRef.current !== attempt) return;
+      setWorking(false);
+      setError(null);
+      setValue("");
+      setMode(
+        authenticatedUserId && hasBiometricsEnabled(authenticatedUserId)
+          ? "biometric"
+          : authenticatedUserId && hasPinLock(authenticatedUserId)
+            ? "pin"
+            : "master"
+      );
+    });
   }, [authenticatedUserId, props.open]);
 
   const verify = async () => {
+    const expectedUserId = authenticatedUserId;
+    if (!expectedUserId) {
+      setError("Your authenticated account could not be verified.");
+      return;
+    }
+    const attempt = ++verificationAttemptRef.current;
+    const isActive = () => (
+      mountedRef.current &&
+      verificationAttemptRef.current === attempt &&
+      isAuthenticatedUserCurrent(expectedUserId)
+    );
     setWorking(true);
     setError(null);
     try {
-      if ((usesBio || usesPin) && !authenticatedUserId) throw new Error("Your authenticated account could not be verified.");
       const recovered = usesBio
-        ? await unlockWithBiometrics(authenticatedUserId!)
+        ? await unlockWithBiometrics(expectedUserId)
         : usesPin
-          ? await verifyPinAndRecoverMaster(value, authenticatedUserId!)
+          ? await verifyPinAndRecoverMaster(value, expectedUserId, isAuthenticatedUserCurrent)
           : value;
+      if (!isActive()) return;
       if (recovered !== props.masterPassword) throw new Error(usesPin ? "The PIN does not unlock this vault." : "The master key does not match this vault.");
-      setValue("");
-      props.onOpenChange(false);
-      props.onVerified();
+      const accepted = commitForExpectedAuthenticatedUser(
+        expectedUserId,
+        isAuthenticatedUserCurrent,
+        (ownerUserId) => {
+          setValue("");
+          props.onOpenChange(false);
+          props.onVerified(ownerUserId);
+        },
+      );
+      if (!accepted) return;
     } catch (reason) {
+      if (!isActive()) return;
       setError(reason instanceof Error ? reason.message : "Verification failed.");
     } finally {
-      setWorking(false);
+      if (isActive()) setWorking(false);
     }
   };
 

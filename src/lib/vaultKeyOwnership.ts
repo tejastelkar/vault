@@ -1,4 +1,7 @@
 const SUPABASE_USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_ACCESS_TOKEN_LENGTH = 8_192;
+
+export type AuthenticatedUserPredicate = (expectedUserId: string) => boolean;
 
 function normalizeVaultUserId(value: unknown): string | null {
   if (typeof value !== "string" || !SUPABASE_USER_ID.test(value)) return null;
@@ -43,6 +46,43 @@ export function commitVaultKeyForExpectedUser(
 
   commit(masterKey, expected);
   return true;
+}
+
+export function commitForExpectedAuthenticatedUser(
+  expectedUserId: unknown,
+  isAuthenticatedUserCurrent: AuthenticatedUserPredicate,
+  commit: (ownerUserId: string) => void,
+): boolean {
+  const expected = normalizeVaultUserId(expectedUserId);
+  if (!expected || !isAuthenticatedUserCurrent(expected)) return false;
+
+  commit(expected);
+  return true;
+}
+
+export async function captureAccessTokenForExpectedUser(
+  expectedUserId: unknown,
+  readAccessToken: () => Promise<unknown>,
+  verifyTokenUserId: (accessToken: string) => Promise<unknown>,
+): Promise<string> {
+  const expected = requireAuthenticatedVaultUserId(expectedUserId);
+  const accessToken = await readAccessToken();
+  if (typeof accessToken !== "string" || !accessToken || accessToken.length > MAX_ACCESS_TOKEN_LENGTH) {
+    throw new Error("Your session has expired. Sign in again to continue.");
+  }
+
+  const verifiedUserId = normalizeVaultUserId(await verifyTokenUserId(accessToken));
+  if (verifiedUserId !== expected) {
+    throw new Error("The captured access token does not belong to the expected authenticated user.");
+  }
+  return accessToken;
+}
+
+export function createCapturedAccessTokenProvider(accessToken: string): () => Promise<string> {
+  if (!accessToken || accessToken.length > MAX_ACCESS_TOKEN_LENGTH) {
+    throw new Error("A valid captured access token is required.");
+  }
+  return async () => accessToken;
 }
 
 export function scopeVaultKeyToAuthenticatedUser(
