@@ -4,6 +4,13 @@ import { test } from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
+const readPolicy = (sql, name) => {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = sql.match(new RegExp(`create policy "${escaped}"[\\s\\S]*?;`, "i"));
+  assert.ok(match, `Missing policy: ${name}`);
+  return match[0];
+};
+
 test("document queries consistently use the vault_documents table", () => {
   const files = [
     "src/components/VaultApp.tsx",
@@ -45,6 +52,7 @@ test("raw account password and master key are not persisted in localStorage", ()
 test("account deletion authenticates the caller and revokes refresh sessions", () => {
   const route = read("src/app/api/delete-account/route.ts");
   assert.match(route, /authenticateRequest\(request\)/);
+  assert.doesNotMatch(route, /authenticateActiveMemberRequest\(request\)/);
   assert.match(route, /admin\.auth\.admin\.signOut\(accessToken,\s*"global"\)/);
   assert.match(route, /collectPaginated/);
   assert.match(route, /chunkValues/);
@@ -55,6 +63,58 @@ test("scan requests are byte-bounded before JSON parsing", () => {
   const route = read("src/app/api/scan/route.ts");
   assert.match(route, /readBoundedJson\(req,\s*MAX_REQUEST_BYTES\)/);
   assert.doesNotMatch(route, /req\.json\(\)/);
+});
+
+test("all protected AI operations require an active member", () => {
+  const actions = read("src/app/actions.ts");
+  const guards = actions.match(/await requireActiveMemberForToken\(accessToken\)/g) ?? [];
+  assert.equal(guards.length, 8, "Every exported vault AI action must require active membership");
+  assert.doesNotMatch(actions, /requireAuthenticatedUser/);
+
+  const scan = read("src/app/api/scan/route.ts");
+  assert.match(scan, /authenticateActiveMemberRequest\(req\)/);
+  assert.doesNotMatch(scan, /authenticateRequest\(req\)/);
+
+  const auth = read("src/lib/server/auth.ts");
+  assert.match(auth, /export async function authenticateActiveMemberRequest/);
+  assert.match(auth, /requireActiveMemberForToken\(token\)/);
+});
+
+test("vault and storage RLS policies combine ownership with active membership", () => {
+  const sql = read("invite_access_schema.sql");
+  const tablePolicies = {
+    "vault items": ["Users can view their own vault items", "Users can insert their own vault items", "Users can update their own vault items", "Users can delete their own vault items"],
+    documents: ["Users can view their own documents", "Users can insert their own documents", "Users can update their own documents", "Users can delete their own documents"],
+    "secure notes": ["Users can view their own secure notes", "Users can insert their own secure notes", "Users can update their own secure notes", "Users can delete their own secure notes"],
+    wallet: ["Users can view their own wallet items", "Users can insert their own wallet items", "Users can update their own wallet items", "Users can delete their own wallet items"],
+  };
+
+  for (const names of Object.values(tablePolicies)) {
+    for (const name of names) {
+      const policy = readPolicy(sql, name);
+      assert.match(policy, /\(select auth\.uid\(\)\)\s*=\s*user_id/i, `${name} must preserve ownership`);
+      assert.match(policy, /member\.user_id\s*=\s*\(select auth\.uid\(\)\)[\s\S]*member\.status\s*=\s*'active'/i, `${name} must require active membership`);
+      if (/update/i.test(name)) {
+        assert.match(policy, /using\s*\([\s\S]*\)\s*with check\s*\(/i, `${name} must constrain old and new rows`);
+      }
+    }
+  }
+
+  for (const name of [
+    "Users can upload their own document files",
+    "Users can update their own document files",
+    "Users can delete their own document files",
+    "Users can upload their own avatars",
+    "Users can update their own avatars",
+    "Users can delete their own avatars",
+  ]) {
+    const policy = readPolicy(sql, name);
+    assert.match(policy, /\(storage\.foldername\(name\)\)\[1\]\s*=\s*\(select auth\.uid\(\)\)::text/i, `${name} must preserve path ownership`);
+    assert.match(policy, /member\.user_id\s*=\s*\(select auth\.uid\(\)\)[\s\S]*member\.status\s*=\s*'active'/i, `${name} must require active membership`);
+    if (/update/i.test(name)) {
+      assert.match(policy, /using\s*\([\s\S]*\)\s*with check\s*\(/i, `${name} must constrain old and new paths`);
+    }
+  }
 });
 
 test("client crypto does not depend on Node Buffer", () => {

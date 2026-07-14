@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
-import { authenticateRequest } from "@/lib/server/auth";
+import { authenticateActiveMemberRequest } from "@/lib/server/auth";
 import { InvalidJsonBodyError, PayloadTooLargeError, readBoundedJson } from "@/lib/server/requestBody";
 
 const MAX_REQUEST_BYTES = 8_500_000;
@@ -14,7 +14,7 @@ function badRequest(error: string, status = 400) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await authenticateRequest(req);
+    const user = await authenticateActiveMemberRequest(req);
     if (!user) return badRequest("Unauthorized", 401);
 
     const body = await readBoundedJson(req, MAX_REQUEST_BYTES);

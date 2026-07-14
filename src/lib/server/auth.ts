@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
+import { requireActiveMemberForToken } from "@/lib/server/access";
 import { createServerSupabaseClient } from "@/lib/server/supabase";
 
 const MAX_ACCESS_TOKEN_LENGTH = 8_192;
@@ -28,6 +29,16 @@ export async function authenticateRequest(request: Request) {
   if (!token) return null;
   try {
     return await requireAuthenticatedUser(token);
+  } catch {
+    return null;
+  }
+}
+
+export async function authenticateActiveMemberRequest(request: Request) {
+  const token = getBearerToken(request);
+  if (!token) return null;
+  try {
+    return await requireActiveMemberForToken(token);
   } catch {
     return null;
   }

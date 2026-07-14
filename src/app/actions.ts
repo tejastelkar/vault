@@ -3,7 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import type { GlobalImportResult, ImportExtractionResponse } from "@/lib/import/types";
 import { isGlobalImportResult, normalizeImportResult } from "@/lib/import/normalize";
-import { requireAuthenticatedUser } from "@/lib/server/auth";
+import { requireActiveMemberForToken } from "@/lib/server/access";
 
 export type { GlobalImportResult } from "@/lib/import/types";
 
@@ -18,7 +18,7 @@ function requireShortText(value: string, label: string, maxLength = 255) {
 }
 
 export async function analyzeImageName(accessToken: string, base64Image: string, mimeType: string): Promise<string> {
-  await requireAuthenticatedUser(accessToken);
+  await requireActiveMemberForToken(accessToken);
   if (!ALLOWED_DOCUMENT_MIME_TYPES.has(mimeType) || !base64Image || base64Image.length > MAX_INLINE_BASE64) {
     throw new Error("This file cannot be analyzed for naming.");
   }
@@ -76,7 +76,7 @@ export async function analyzeImageName(accessToken: string, base64Image: string,
 }
 
 export async function enrichPasswordMetadata(accessToken: string, title: string): Promise<{ category: string, domain: string | null }> {
-  await requireAuthenticatedUser(accessToken);
+  await requireActiveMemberForToken(accessToken);
   title = requireShortText(title, "password title");
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -125,7 +125,7 @@ export async function enrichPasswordMetadata(accessToken: string, title: string)
 }
 
 export async function categorizeDocument(accessToken: string, title: string): Promise<string> {
-  await requireAuthenticatedUser(accessToken);
+  await requireActiveMemberForToken(accessToken);
   title = requireShortText(title, "document title");
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return "Uncategorized";
@@ -161,7 +161,7 @@ export async function categorizeDocument(accessToken: string, title: string): Pr
 }
 
 export async function categorizeNote(accessToken: string, title: string): Promise<string> {
-  await requireAuthenticatedUser(accessToken);
+  await requireActiveMemberForToken(accessToken);
   title = requireShortText(title, "note title");
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return "Uncategorized";
@@ -197,7 +197,7 @@ export async function categorizeNote(accessToken: string, title: string): Promis
 }
 
 export async function aiSearchVault(accessToken: string, query: string, items: { id: string; type: string; title: string; category?: string }[]): Promise<string | null> {
-  await requireAuthenticatedUser(accessToken);
+  await requireActiveMemberForToken(accessToken);
   query = requireShortText(query, "search query", 300);
   if (!Array.isArray(items) || items.length > 300) throw new Error("Too many search items.");
   items = items.map((item) => ({
@@ -243,7 +243,7 @@ export async function aiSearchVault(accessToken: string, query: string, items: {
 }
 
 export async function parseNotesToPasswords(accessToken: string, rawText: string): Promise<Array<Record<string, unknown>>> {
-  await requireAuthenticatedUser(accessToken);
+  await requireActiveMemberForToken(accessToken);
   rawText = requireShortText(rawText, "pasted text", MAX_TEXT_INPUT);
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -289,7 +289,7 @@ export async function parseNotesToPasswords(accessToken: string, rawText: string
 }
 
 export async function parseBulkNotes(accessToken: string, rawText: string): Promise<Array<Record<string, unknown>>> {
-  await requireAuthenticatedUser(accessToken);
+  await requireActiveMemberForToken(accessToken);
   rawText = requireShortText(rawText, "pasted text", MAX_TEXT_INPUT);
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -417,7 +417,7 @@ CRITICAL RULES:
 
 export async function extractGlobalImportDrafts(accessToken: string, rawText: string): Promise<ImportExtractionResponse> {
   try {
-    await requireAuthenticatedUser(accessToken);
+    await requireActiveMemberForToken(accessToken);
   } catch {
     return { ok: false, code: "EXTRACTION_FAILED", message: "Your session has expired. Sign in again to continue." };
   }
