@@ -64,6 +64,89 @@ as $$
   returning request_count <= p_limit;
 $$;
 
+create or replace function public.claim_access_request_invitation(
+  p_request_id uuid,
+  p_admin_id uuid,
+  p_now timestamptz,
+  p_stale_before timestamptz
+) returns table (id uuid, email text, full_name text)
+language sql
+security invoker
+set search_path = ''
+as $$
+  update public.access_requests as request
+  set status = 'inviting',
+      invite_started_at = p_now,
+      reviewed_at = coalesce(request.reviewed_at, p_now),
+      reviewed_by = p_admin_id,
+      invite_attempts = request.invite_attempts + 1,
+      last_error_code = null,
+      updated_at = p_now
+  where request.id = p_request_id
+    and (
+      request.status in ('pending', 'invite_failed')
+      or (
+        request.status = 'inviting'
+        and request.invite_started_at < p_stale_before
+      )
+    )
+  returning request.id, request.email, request.full_name;
+$$;
+
+create or replace function public.complete_access_request_invitation(
+  p_request_id uuid,
+  p_admin_id uuid,
+  p_user_id uuid,
+  p_now timestamptz
+) returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  request_email text;
+begin
+  select request.email
+  into request_email
+  from public.access_requests as request
+  where request.id = p_request_id
+    and request.status = 'inviting'
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'invitation request is not claimable';
+  end if;
+
+  insert into public.app_members as member (
+    user_id,
+    email,
+    status,
+    access_request_id,
+    approved_by,
+    approved_at
+  ) values (
+    p_user_id,
+    request_email,
+    'invited',
+    p_request_id,
+    p_admin_id,
+    p_now
+  )
+  on conflict (user_id) do update
+  set email = excluded.email,
+      access_request_id = coalesce(member.access_request_id, excluded.access_request_id),
+      approved_by = coalesce(member.approved_by, excluded.approved_by);
+
+  update public.access_requests as request
+  set status = 'invited',
+      auth_user_id = p_user_id,
+      invited_at = p_now,
+      last_error_code = null,
+      updated_at = p_now
+  where request.id = p_request_id;
+end;
+$$;
+
 alter table public.access_requests enable row level security;
 alter table public.app_members enable row level security;
 alter table public.admin_audit_log enable row level security;
@@ -79,6 +162,10 @@ grant select, insert, update, delete on public.access_requests, public.app_membe
 grant usage, select on sequence public.admin_audit_log_id_seq to service_role;
 revoke all on function public.consume_access_request_rate_limit(text, timestamptz, integer) from public, anon, authenticated;
 grant execute on function public.consume_access_request_rate_limit(text, timestamptz, integer) to service_role;
+revoke all on function public.claim_access_request_invitation(uuid, uuid, timestamptz, timestamptz) from public, anon, authenticated;
+grant execute on function public.claim_access_request_invitation(uuid, uuid, timestamptz, timestamptz) to service_role;
+revoke all on function public.complete_access_request_invitation(uuid, uuid, uuid, timestamptz) from public, anon, authenticated;
+grant execute on function public.complete_access_request_invitation(uuid, uuid, uuid, timestamptz) to service_role;
 
 drop policy if exists "Members read their own status" on public.app_members;
 create policy "Members read their own status" on public.app_members
