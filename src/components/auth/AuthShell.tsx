@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { AppleLockIcon } from "@/components/Icons";
 import styles from "./auth-shell.module.css";
 
 export type AuthMode = "sign-in" | "request-access";
@@ -66,10 +65,6 @@ export function AuthShell({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 340, damping: 30 }}
       >
-        <div className={styles.mark} aria-hidden="true">
-          <AppleLockIcon />
-        </div>
-
         {eyebrow && <p className={styles.eyebrow}>{eyebrow}</p>}
 
         <AnimatePresence mode="wait" initial={false}>
