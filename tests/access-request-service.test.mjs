@@ -309,9 +309,9 @@ test("Next schedules selected cleanup after the response instead of awaiting it"
 test("request page preserves entries for retry and exposes accessible completion and errors", () => {
   const page = read("src/app/request-access/page.tsx");
   const form = read("src/components/access/RequestAccessForm.tsx");
-  const css = read("src/app/request-access/request-access.module.css");
+  const css = read("src/components/auth/auth-shell.module.css");
 
-  assert.match(page, /<RequestAccessForm\s*\/>/);
+  assert.match(page, /<AuthGateway\s+initialMode="request-access"\s*\/>/);
   assert.match(form, /label[\s\S]*Full name/);
   assert.match(form, /label[\s\S]*Email/);
   assert.match(form, /name="website"/);
@@ -329,6 +329,6 @@ test("request page preserves entries for retry and exposes accessible completion
   assert.doesNotMatch(form, /master.?key|password/i);
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /:focus-visible/);
-  assert.match(css, /@media \(max-width:\s*700px\)/);
+  assert.match(css, /@media \(max-width:\s*480px\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });

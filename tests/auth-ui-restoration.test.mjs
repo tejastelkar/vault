@@ -19,3 +19,18 @@ test("shared auth shell owns presentation without authentication", () => {
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
+
+test("gateway maps the historical second segment to request access", () => {
+  const gateway = read("src/components/auth/AuthGateway.tsx");
+  const signIn = read("src/components/auth/SignInForm.tsx");
+  const request = read("src/components/access/RequestAccessForm.tsx");
+
+  assert.match(gateway, /<SignInForm/);
+  assert.match(gateway, /<RequestAccessForm/);
+  assert.match(gateway, /initialMode/);
+  assert.doesNotMatch(gateway, /signUp/);
+  assert.match(signIn, /signInWithPassword/);
+  assert.doesNotMatch(signIn, /masterKey|masterPassword|signUp/);
+  assert.match(request, /JSON\.stringify\(\{ fullName, email, website \}\)/);
+  assert.doesNotMatch(request, /password|masterKey|masterPassword/);
+});

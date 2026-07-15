@@ -1,4 +1,4 @@
-import { SignInForm } from "@/components/auth/SignInForm";
+import { AuthGateway } from "@/components/auth/AuthGateway";
 import { parseSafeNextPath } from "@/lib/access/validation";
 
 export default async function LoginPage({
@@ -9,5 +9,5 @@ export default async function LoginPage({
   const { next } = await searchParams;
   const nextPath = parseSafeNextPath(typeof next === "string" ? next : null);
 
-  return <SignInForm nextPath={nextPath} />;
+  return <AuthGateway initialMode="sign-in" nextPath={nextPath} />;
 }

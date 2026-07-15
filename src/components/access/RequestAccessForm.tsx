@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import styles from "@/app/request-access/request-access.module.css";
+import { ArrowRightIcon } from "lucide-react";
+import styles from "@/components/auth/auth-shell.module.css";
 
 type FieldErrors = Partial<Record<"fullName" | "email" | "form", string>>;
 type FormState = "editing" | "submitting" | "accepted" | "retry";
@@ -92,14 +93,15 @@ export function RequestAccessForm() {
 
   return (
     <form
-      className={styles.form}
+      className={styles.formStack}
       action="/api/access-requests"
       method="post"
       onSubmit={submit}
       noValidate
     >
-      <div className={styles.field}>
-        <label htmlFor="request-full-name">Full name</label>
+      <div className={styles.fieldGroup}>
+        <label className={styles.field} htmlFor="request-full-name">
+          <span className={styles.fieldLabel}>Full name</span>
         <input
           id="request-full-name"
           name="fullName"
@@ -112,10 +114,10 @@ export function RequestAccessForm() {
           disabled={submitting}
         />
         {errors.fullName && <span id="request-full-name-error" className={styles.fieldError}>{errors.fullName}</span>}
-      </div>
+        </label>
 
-      <div className={styles.field}>
-        <label htmlFor="request-email">Email</label>
+        <label className={styles.field} htmlFor="request-email">
+          <span className={styles.fieldLabel}>Email</span>
         <input
           id="request-email"
           name="email"
@@ -129,6 +131,7 @@ export function RequestAccessForm() {
           disabled={submitting}
         />
         {errors.email && <span id="request-email-error" className={styles.fieldError}>{errors.email}</span>}
+        </label>
       </div>
 
       <div className={styles.honeypot} aria-hidden="true">
@@ -144,11 +147,11 @@ export function RequestAccessForm() {
         />
       </div>
 
-      {failure && <p className={styles.formError} role="alert">{failure}</p>}
+      {failure && <p className={styles.alert} role="alert">{failure}</p>}
 
-      <button className={styles.submit} type="submit" disabled={submitting}>
+      <button className={styles.primaryAction} type="submit" disabled={submitting}>
         <span>{submitting ? "Sending request…" : state === "retry" ? "Retry request" : "Request access"}</span>
-        <span aria-hidden="true">→</span>
+        <ArrowRightIcon width={17} height={17} aria-hidden="true" />
       </button>
     </form>
   );
