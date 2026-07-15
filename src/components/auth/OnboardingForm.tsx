@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useVaultKey } from "@/components/auth/VaultKeyProvider";
 import { getExpectedUserAuthorization, updateExpectedUserPassword } from "@/lib/authToken";
 import { supabase } from "@/lib/supabase";
-import styles from "@/app/onboarding/onboarding.module.css";
+import { ArrowRightIcon } from "lucide-react";
+import styles from "@/components/auth/auth-shell.module.css";
 
 export function OnboardingForm({ userId, email }: { userId: string; email: string }) {
   const router = useRouter();
@@ -71,50 +72,28 @@ export function OnboardingForm({ userId, email }: { userId: string; email: strin
   }
 
   return (
-    <form className={styles.form} onSubmit={completeOnboarding} noValidate>
+    <form className={styles.formStack} onSubmit={completeOnboarding} noValidate>
       <p className={styles.invitedEmail}>Invited as <strong>{email}</strong></p>
-      <label className={styles.field} htmlFor="onboarding-password">
-        <span>New sign-in password</span>
-        <input
-          id="onboarding-password"
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={submitting}
-          required
-        />
-        <small>Used only to sign in to your account.</small>
-      </label>
-      <label className={styles.field} htmlFor="onboarding-master-key">
-        <span>Existing vault master key</span>
-        <input
-          id="onboarding-master-key"
-          type="password"
-          autoComplete="off"
-          value={masterKey}
-          onChange={(event) => setMasterKeyValue(event.target.value)}
-          disabled={submitting}
-          required
-        />
-        <small>Never sent, stored, logged, or added to your account.</small>
-      </label>
-      <label className={styles.field} htmlFor="onboarding-master-key-confirmation">
-        <span>Confirm master key</span>
-        <input
-          id="onboarding-master-key-confirmation"
-          type="password"
-          autoComplete="off"
-          value={masterKeyConfirmation}
-          onChange={(event) => setMasterKeyConfirmation(event.target.value)}
-          disabled={submitting}
-          required
-        />
-      </label>
-      {error && <p className={styles.formError} role="alert">{error}</p>}
+      <div className={styles.fieldGroup}>
+        <label className={styles.field} htmlFor="onboarding-password">
+          <span className={styles.fieldLabel}>New sign-in password</span>
+          <input id="onboarding-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={submitting} required />
+          <small className={styles.fieldHint}>Used only to sign in to your account.</small>
+        </label>
+        <label className={styles.field} htmlFor="onboarding-master-key">
+          <span className={styles.fieldLabel}>Existing vault master key</span>
+          <input id="onboarding-master-key" type="password" autoComplete="off" value={masterKey} onChange={(event) => setMasterKeyValue(event.target.value)} disabled={submitting} required />
+          <small className={styles.fieldHint}>Never sent, stored, logged, or added to your account.</small>
+        </label>
+        <label className={styles.field} htmlFor="onboarding-master-key-confirmation">
+          <span className={styles.fieldLabel}>Confirm master key</span>
+          <input id="onboarding-master-key-confirmation" type="password" autoComplete="off" value={masterKeyConfirmation} onChange={(event) => setMasterKeyConfirmation(event.target.value)} disabled={submitting} required />
+        </label>
+      </div>
+      {error && <p className={styles.alert} role="alert">{error}</p>}
       <button className={styles.primaryAction} type="submit" disabled={submitting}>
         <span>{submitting ? "Creating private access…" : "Create private access"}</span>
-        <span aria-hidden="true">→</span>
+        <ArrowRightIcon width={17} height={17} aria-hidden="true" />
       </button>
       <p className={styles.securityNote}>The master key leaves this form only for local, in-memory vault access.</p>
     </form>

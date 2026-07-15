@@ -34,3 +34,19 @@ test("gateway maps the historical second segment to request access", () => {
   assert.match(request, /JSON\.stringify\(\{ fullName, email, website \}\)/);
   assert.doesNotMatch(request, /password|masterKey|masterPassword/);
 });
+
+test("the complete account journey shares presentation and preserves secure handlers", () => {
+  const accept = read("src/app/accept-invite/page.tsx");
+  const onboardingPage = read("src/app/onboarding/page.tsx");
+  const onboardingForm = read("src/components/auth/OnboardingForm.tsx");
+  const reset = read("src/app/reset-password/page.tsx");
+
+  for (const source of [accept, onboardingPage, reset]) assert.match(source, /AuthShell/);
+  assert.match(accept, /action="\/auth\/confirm"/);
+  assert.match(onboardingPage, /requireUser/);
+  assert.match(onboardingPage, /getMembershipForUser/);
+  assert.match(onboardingForm, /getExpectedUserAuthorization/);
+  assert.match(onboardingForm, /setMasterKey\(masterKey, userId\)/);
+  assert.match(reset, /exchangeCodeForSession/);
+  assert.match(reset, /auth\.updateUser\(\{ password \}\)/);
+});

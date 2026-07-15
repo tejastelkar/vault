@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { KeyRoundIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
+import { ArrowRightIcon, Loader2Icon } from "lucide-react";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { supabase } from "@/lib/supabase";
+import styles from "@/components/auth/auth-shell.module.css";
 
 export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
@@ -40,30 +42,36 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <main className="apple-app apple-surface flex min-h-dvh items-center justify-center px-4 py-10">
-      <section className="apple-material w-full max-w-md rounded-[28px] p-6 sm:p-8" aria-labelledby="reset-title">
-        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-[18px] bg-primary/10 text-primary">
-          {complete ? <ShieldCheckIcon className="h-7 w-7" /> : <KeyRoundIcon className="h-7 w-7" />}
-        </div>
-        <h1 id="reset-title" className="text-[28px] font-semibold tracking-[-0.03em]">{complete ? "Sign-in password updated" : "Reset sign-in password"}</h1>
-        <p className="mt-2 text-[14px] leading-6 text-muted-foreground">
-          {complete
-            ? "Your account password was changed. Your vault master key was not changed."
-            : "This changes only your Supabase sign-in password. You will still need your existing vault master key to decrypt your data."}
-        </p>
-
-        {complete ? (
-          <Link href="/" className="mt-7 flex h-12 w-full items-center justify-center rounded-xl bg-primary font-semibold text-primary-foreground">Return to Telkar Vault</Link>
-        ) : (
-          <form onSubmit={submit} className="mt-7 space-y-4">
-            <label className="block text-[13px] font-medium"><span className="mb-1.5 block">New sign-in password</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" disabled={!ready || working} className="h-12 w-full rounded-xl border border-border bg-secondary px-4 text-[16px] outline-none focus:border-primary" /></label>
-            <label className="block text-[13px] font-medium"><span className="mb-1.5 block">Confirm password</span><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={!ready || working} className="h-12 w-full rounded-xl border border-border bg-secondary px-4 text-[16px] outline-none focus:border-primary" /></label>
-            {error && <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] leading-5 text-destructive">{error}</p>}
-            <button type="submit" disabled={!ready || working} className="flex h-12 w-full items-center justify-center rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50">{working ? <Loader2Icon className="h-5 w-5 animate-spin" /> : "Update password"}</button>
-            <Link href="/" className="block text-center text-[13px] font-medium text-muted-foreground hover:text-foreground">Back to sign in</Link>
-          </form>
-        )}
-      </section>
-    </main>
+    <AuthShell
+      compact
+      eyebrow="Account recovery"
+      title={complete ? "Sign-in password updated" : "Reset sign-in password"}
+      description={complete
+        ? "Your account password was changed. Your vault master key was not changed."
+        : "This changes only your Supabase sign-in password. You will still need your existing vault master key to decrypt your data."}
+    >
+      {complete ? (
+        <Link href="/login" className={styles.actionLink}><span>Return to sign in</span><ArrowRightIcon width={17} height={17} aria-hidden="true" /></Link>
+      ) : (
+        <form onSubmit={submit} className={styles.formStack}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.field} htmlFor="reset-password">
+              <span className={styles.fieldLabel}>New sign-in password</span>
+              <input id="reset-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" disabled={!ready || working} />
+            </label>
+            <label className={styles.field} htmlFor="reset-password-confirmation">
+              <span className={styles.fieldLabel}>Confirm password</span>
+              <input id="reset-password-confirmation" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={!ready || working} />
+            </label>
+          </div>
+          {error && <p role="alert" className={styles.alert}>{error}</p>}
+          <button type="submit" disabled={!ready || working} className={styles.primaryAction}>
+            <span>{working ? "Updating password…" : "Update password"}</span>
+            {working ? <Loader2Icon width={17} height={17} className="animate-spin" aria-hidden="true" /> : <ArrowRightIcon width={17} height={17} aria-hidden="true" />}
+          </button>
+          <div className={styles.secondaryActions}><Link href="/login" className={styles.secondaryAction}>Back to sign in</Link></div>
+        </form>
+      )}
+    </AuthShell>
   );
 }
